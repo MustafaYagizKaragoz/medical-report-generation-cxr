@@ -1,0 +1,28 @@
+# ============================================================
+# Tıbbi Rapor Üretimi - Gerekli Paketler
+# ============================================================
+
+# PyTorch (CUDA versiyonuna göre kurulmalı)
+# pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Transformers (Swin + BioGPT)
+transformers>=4.30.0
+
+# Veri İşleme
+pandas>=1.5.0
+numpy>=1.24.0
+Pillow>=9.0.0
+
+# NLP Metrikleri
+nltk>=3.8.0
+rouge-score>=0.1.2
+pycocoevalcap>=1.2
+
+# Eğitim & Görselleştirme
+tqdm>=4.65.0
+matplotlib>=3.7.0
+
+# Diğer
+scikit-learn>=1.2.0
