@@ -38,11 +38,11 @@ class MedicalTransformer(nn.Module):
             self.tokenizer.pad_token = self.tokenizer.eos_token
             print("⚠️ BioGPT için PAD token = EOS token olarak ayarlandı.")
 
-        # 2. Modelleri Birleştir (HuggingFace Cross-Attention otomatik kurar)
-        self.model = VisionEncoderDecoderModel.from_encoder_decoder_pretrained(
-            encoder_name, 
-            decoder_name,
-        )
+        # 2. Modelleri Birleştir
+        #    BioGptConfig'de is_decoder / add_cross_attention attribute'ları
+        #    bulunmadığından from_encoder_decoder_pretrained() doğrudan kullanılamaz.
+        #    Çözüm: config'i elle yamalayıp modeli manuel olarak oluştur.
+        self.model = self._build_ved_model(encoder_name, decoder_name)
         
         # 3. Model Konfigürasyonları
         self.model.config.decoder_start_token_id = self.tokenizer.bos_token_id or self.tokenizer.eos_token_id
@@ -87,15 +87,76 @@ class MedicalTransformer(nn.Module):
         print(f"   Vocabulary:           {len(self.tokenizer):,} tokens")
         print(f"{'='*70}\n")
 
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _build_ved_model(encoder_name: str, decoder_name: str):
+        """
+        BioGPT'yi VisionEncoderDecoder'a entegre et.
+
+        BioGptConfig, is_decoder / add_cross_attention attribute'larını
+        tanımlamadığından HuggingFace'in from_encoder_decoder_pretrained()
+        yöntemi AttributeError fırlatır. Bu yardımcı fonksiyon:
+          1. Config'leri ve ağırlıkları ayrı ayrı indirir,
+          2. Decoder config'ine gerekli flag'leri ekler,
+          3. VisionEncoderDecoderModel'i sıfırdan kurar,
+          4. Encoder + decoder ağırlıklarını elle yükler.
+        """
+        from transformers import (
+            AutoConfig,
+            AutoModel,
+            AutoModelForCausalLM,
+            SwinModel,
+            VisionEncoderDecoderConfig,
+        )
+
+        print("📦 Encoder config yükleniyor...")
+        encoder_config = AutoConfig.from_pretrained(encoder_name)
+
+        print("📦 Decoder config yükleniyor...")
+        decoder_config = AutoConfig.from_pretrained(decoder_name)
+
+        # BioGptConfig bu attribute'lara sahip değil — elle ekle
+        decoder_config.is_decoder = True
+        decoder_config.add_cross_attention = True
+
+        # VisionEncoderDecoderConfig oluştur
+        config = VisionEncoderDecoderConfig.from_encoder_decoder_configs(
+            encoder_config, decoder_config
+        )
+
+        # Boş bir VisionEncoderDecoderModel oluştur
+        model = VisionEncoderDecoderModel(config=config)
+
+        # Pretrained encoder ağırlıklarını yükle
+        print("⬇️  Encoder ağırlıkları yükleniyor...")
+        encoder_pretrained = SwinModel.from_pretrained(encoder_name)
+        model.encoder.load_state_dict(encoder_pretrained.state_dict(), strict=False)
+        del encoder_pretrained
+
+        # Pretrained decoder ağırlıklarını yükle
+        print("⬇️  Decoder ağırlıkları yükleniyor...")
+        decoder_pretrained = AutoModelForCausalLM.from_pretrained(decoder_name)
+        # Cross-attention katmanları yeni eklendiğinden strict=False zorunlu
+        missing, unexpected = model.decoder.load_state_dict(
+            decoder_pretrained.state_dict(), strict=False
+        )
+        if missing:
+            print(f"   ℹ️  Eksik (yeni) ağırlıklar rastgele başlatıldı: {len(missing)} adet")
+        del decoder_pretrained
+
+        print("✅ VisionEncoderDecoderModel başarıyla oluşturuldu.")
+        return model
+    # ------------------------------------------------------------------
+
     def forward(self, pixel_values, labels=None, attention_mask=None):
         """
         Forward pass.
-        
+
         Args:
             pixel_values: [B, 3, 384, 384] — Görüntüler
             labels: [B, seq_len] — Hedef token ID'leri (eğitimde)
             attention_mask: [B, seq_len] — Label attention mask
-        
+
         Returns:
             HuggingFace model çıktısı (outputs.loss, outputs.logits)
         """
@@ -106,18 +167,18 @@ class MedicalTransformer(nn.Module):
         )
         return outputs
 
-    def generate_report(self, pixel_values, max_length=150, num_beams=5, 
-                       do_sample=False, temperature=0.8):
+    def generate_report(self, pixel_values, max_length=150, num_beams=5,
+                        do_sample=False, temperature=0.8):
         """
         Görüntüden tıbbi rapor üret.
-        
+
         Args:
             pixel_values: [B, 3, 384, 384]
             max_length: Maksimum üretim uzunluğu
             num_beams: Beam search genişliği
             do_sample: Sampling kullan (True) veya beam search (False)
             temperature: Sampling sıcaklığı
-        
+
         Returns:
             List[str]: Üretilen raporlar
         """
@@ -132,12 +193,12 @@ class MedicalTransformer(nn.Module):
             do_sample=do_sample,
             temperature=temperature if do_sample else 1.0
         )
-        
+
         generated_text = self.tokenizer.batch_decode(
-            generated_ids, 
+            generated_ids,
             skip_special_tokens=True
         )
-        
+
         return generated_text
 
     def unfreeze_encoder(self):
