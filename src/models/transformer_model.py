@@ -51,13 +51,18 @@ class MedicalTransformer(nn.Module):
         self.model.config.vocab_size = self.model.config.decoder.vocab_size
 
         # 4. Üretim (Generation) Ayarları
-        self.model.config.max_length = max_length
-        self.model.config.min_length = 20
-        self.model.config.early_stopping = True
-        self.model.config.no_repeat_ngram_size = 3
-        self.model.config.length_penalty = 1.2
-        self.model.config.num_beams = num_beams
-        self.model.config.temperature = 0.8
+        # ⚠️ Yeni HuggingFace (4.40+): generation param'ları model.config'e DEĞİL
+        #    model.generation_config'e yazılmalı (ValueError: generation params in config)
+        self.model.generation_config.max_length = max_length
+        self.model.generation_config.min_length = 20
+        self.model.generation_config.early_stopping = True
+        self.model.generation_config.no_repeat_ngram_size = 3
+        self.model.generation_config.length_penalty = 1.2
+        self.model.generation_config.num_beams = num_beams
+        self.model.generation_config.temperature = 0.8
+        self.model.generation_config.decoder_start_token_id = self.model.config.decoder_start_token_id
+        self.model.generation_config.eos_token_id = self.tokenizer.eos_token_id
+        self.model.generation_config.pad_token_id = self.tokenizer.pad_token_id
 
         # 5. Fine-Tuning Kontrolü
         if freeze_encoder:
@@ -214,7 +219,18 @@ class MedicalTransformer(nn.Module):
 
     def save_pretrained(self, save_dir):
         """Model ve tokenizer'ı HuggingFace formatında kaydet"""
+        import os
+        os.makedirs(save_dir, exist_ok=True)
+        
+        # Generation config'i model.config'den temizle (ValueError önlemi)
+        gen_keys = ['max_length', 'min_length', 'early_stopping', 'no_repeat_ngram_size',
+                    'length_penalty', 'num_beams', 'temperature']
+        for key in gen_keys:
+            if hasattr(self.model.config, key):
+                delattr(self.model.config, key)
+        
         self.model.save_pretrained(save_dir)
+        self.model.generation_config.save_pretrained(save_dir)  # generation_config.json ayrı kaydedilir
         self.tokenizer.save_pretrained(save_dir)
         print(f"💾 Model kaydedildi: {save_dir}")
     
