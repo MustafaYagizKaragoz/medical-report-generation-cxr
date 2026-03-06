@@ -314,8 +314,7 @@ def main():
         mode='min',          # val_loss'u minimize etmek istiyoruz
         factor=0.5,          # LR'ı %50 azalt
         patience=2,          # 2 epoch iyileşme olmazsa tetikle
-        min_lr=1e-7,         # LR alt limiti
-        verbose=True         # LR değişimlerini ekrana yaz
+        min_lr=1e-7        # LR alt limiti
     )
     
     # Mixed precision scaler
@@ -476,7 +475,7 @@ def main():
     print(f"   ⬇️ Best Train Loss:  {summary['best_train_loss']:.4f}")
     print(f"   ⬇️ Best Val Loss:    {summary['best_val_loss']:.4f}")
     print(f"   📁 Log:             {summary['log_file']}")
-    print(f"\n💾 En İyi Model: {Config.TRANSFORMER_CHECKPOINT_DIR}/best_model/")
+    print(f"\n💾 En İyi Model: {Config.TRANSFORMER_CHECKPOINT_DIR}/best_model/")#
     print(f"{'='*70}\n")
     
     # 🚀 Test otomatik çalıştır
