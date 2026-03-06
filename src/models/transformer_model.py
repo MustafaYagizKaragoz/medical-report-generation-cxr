@@ -1,6 +1,10 @@
 import torch
 import torch.nn as nn
-from transformers import VisionEncoderDecoderModel, AutoTokenizer
+# NOT: transformers importları kasıtlı olarak burada yapılmıyor.
+# VisionEncoderDecoderModel ve AutoTokenizer, sınıf metotları içinde
+# lazy olarak import edilir. Böylece torch/transformers versiyon
+# uyumsuzluğu (Kaggle) yalnızca MedicalTransformer kullanılırken hata
+# verir, modül import edilirken tüm projeyi bloklamaz.
 
 class MedicalTransformer(nn.Module):
     def __init__(self, 
@@ -30,7 +34,8 @@ class MedicalTransformer(nn.Module):
         print(f"👁️  Encoder : {encoder_name}")
         print(f"🗣️  Decoder : {decoder_name}")
 
-        # 1. BioGPT Tokenizer'ı Yükle
+        # 1. BioGPT Tokenizer'ı Yükle (lazy import — Kaggle uyumluluğu)
+        from transformers import AutoTokenizer  # noqa: PLC0415
         self.tokenizer = AutoTokenizer.from_pretrained(decoder_name)
         
         # GPT modellerinde PAD token'ı yok → EOS token'ını PAD olarak ata
@@ -106,12 +111,13 @@ class MedicalTransformer(nn.Module):
           3. VisionEncoderDecoderModel'i sıfırdan kurar,
           4. Encoder + decoder ağırlıklarını elle yükler.
         """
-        from transformers import (
+        from transformers import (  # noqa: PLC0415
             AutoConfig,
             AutoModel,
             AutoModelForCausalLM,
             SwinModel,
             VisionEncoderDecoderConfig,
+            VisionEncoderDecoderModel,
         )
 
         print("📦 Encoder config yükleniyor...")
@@ -241,10 +247,11 @@ class MedicalTransformer(nn.Module):
         instance = cls.__new__(cls)
         nn.Module.__init__(instance)
         
+        from transformers import AutoTokenizer, VisionEncoderDecoderModel  # noqa: PLC0415
         instance.tokenizer = AutoTokenizer.from_pretrained(load_dir)
         if instance.tokenizer.pad_token is None:
             instance.tokenizer.pad_token = instance.tokenizer.eos_token
-        
+
         instance.model = VisionEncoderDecoderModel.from_pretrained(load_dir)
         
         if freeze_encoder:
