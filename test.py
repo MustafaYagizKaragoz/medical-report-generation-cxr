@@ -368,7 +368,7 @@ def main():
         image_root=Config.IMAGE_DIR,
         vocab_path=Config.VOCAB_PATH,
         batch_size=32,           # Test için daha büyük batch olabilir
-        num_workers=Config.NUM_WORKERS,
+        num_workers=0,
         build_vocab=False,       # Vocab zaten hazır
         freq_threshold=2,
     )

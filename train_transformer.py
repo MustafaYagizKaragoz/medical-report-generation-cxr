@@ -74,20 +74,21 @@ class TransformerTrainingLogger:
 # =========================================================================
 # 📊 CHECKPOINT FONKSIYONLARI
 # =========================================================================
-def save_transformer_checkpoint(model, optimizer, scaler, epoch, loss, save_dir):
+def save_transformer_checkpoint(model, optimizer, scaler, epoch, loss, save_dir, scheduler=None):
     """
     Transformer checkpoint kaydet.
-    HuggingFace modeli kendi formatında, optimizer/scaler ayrı PyTorch formatında.
+    HuggingFace modeli kendi formatında, optimizer/scaler/scheduler ayrı PyTorch formatında.
     """
     os.makedirs(save_dir, exist_ok=True)
     
     # HuggingFace model + tokenizer kaydet
     model.save_pretrained(save_dir)
     
-    # Optimizer, scaler, epoch bilgisi kaydet
+    # Optimizer, scaler, scheduler, epoch bilgisi kaydet
     training_state = {
         "optimizer": optimizer.state_dict(),
         "scaler": scaler.state_dict() if scaler is not None else None,
+        "scheduler": scheduler.state_dict() if scheduler is not None else None,
         "epoch": epoch,
         "loss": loss,
         "timestamp": datetime.now().isoformat(),
@@ -96,7 +97,7 @@ def save_transformer_checkpoint(model, optimizer, scaler, epoch, loss, save_dir)
     print(f"💾 Checkpoint kaydedildi: {save_dir}")
 
 
-def load_transformer_checkpoint(save_dir, optimizer, scaler, device):
+def load_transformer_checkpoint(save_dir, optimizer, scaler, device, scheduler=None):
     """Transformer checkpoint yükle"""
     state_path = os.path.join(save_dir, "training_state.pth")
     
@@ -117,6 +118,13 @@ def load_transformer_checkpoint(save_dir, optimizer, scaler, device):
                 scaler.load_state_dict(state["scaler"])
             except:
                 pass
+        
+        if scheduler is not None and state.get("scheduler"):
+            try:
+                scheduler.load_state_dict(state["scheduler"])
+                print(f"   📉 Scheduler state yüklendi")
+            except Exception as e:
+                print(f"   ⚠️ Scheduler state yüklenemedi: {e}")
         
         start_epoch = state["epoch"] + 1
         loss = state["loss"]
@@ -299,10 +307,22 @@ def main():
         weight_decay=getattr(Config, 'TRANSFORMER_WEIGHT_DECAY', 0.01)
     )
     
+    # --- LR SCHEDULER ---
+    # ReduceLROnPlateau: val_loss iyileşmezse LR'ı yarıya indir
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer,
+        mode='min',          # val_loss'u minimize etmek istiyoruz
+        factor=0.5,          # LR'ı %50 azalt
+        patience=2,          # 2 epoch iyileşme olmazsa tetikle
+        min_lr=1e-7,         # LR alt limiti
+        verbose=True         # LR değişimlerini ekrana yaz
+    )
+    
     # Mixed precision scaler
     scaler = GradScaler() if USE_AMP and device.type == 'cuda' else None
     
     print(f"✅ Optimizer: AdamW (LR={Config.TRANSFORMER_LEARNING_RATE})")
+    print(f"✅ Scheduler: ReduceLROnPlateau (factor=0.5, patience=2, min_lr=1e-7)")
     print(f"✅ Loss: CrossEntropyLoss (HuggingFace dahili)\n")
     
     # --- LOGGER & TRACKING ---
@@ -316,7 +336,7 @@ def main():
     start_epoch = 0
     if Config.TRANSFORMER_RESUME and os.path.exists(Config.TRANSFORMER_CHECKPOINT_FILE):
         start_epoch, _ = load_transformer_checkpoint(
-            Config.TRANSFORMER_CHECKPOINT_FILE, optimizer, scaler, device
+            Config.TRANSFORMER_CHECKPOINT_FILE, optimizer, scaler, device, scheduler
         )
         
         if start_epoch > Config.TRANSFORMER_FINE_TUNE_START_EPOCH:
@@ -332,6 +352,11 @@ def main():
                            if 'encoder' not in n and p.requires_grad], 
                  'lr': Config.TRANSFORMER_LEARNING_RATE},
             ], weight_decay=getattr(Config, 'TRANSFORMER_WEIGHT_DECAY', 0.01))
+            
+            # Scheduler'ı yeni optimizer ile yeniden oluştur
+            scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+                optimizer, mode='min', factor=0.5, patience=2, min_lr=1e-7, verbose=True
+            )
     
     # =====================================================================
     # 🎯 MAIN TRAINING LOOP
@@ -363,8 +388,14 @@ def main():
                  'name': 'decoder'},
             ], weight_decay=getattr(Config, 'TRANSFORMER_WEIGHT_DECAY', 0.01))
             
+            # Fine-tuning için scheduler'ı sıfırla
+            scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+                optimizer, mode='min', factor=0.5, patience=2, min_lr=1e-7, verbose=True
+            )
+            
             print(f"✅ Encoder LR: {Config.TRANSFORMER_LEARNING_RATE * 0.1:.2e}")
-            print(f"✅ Decoder LR: {Config.TRANSFORMER_LEARNING_RATE:.2e}\n")
+            print(f"✅ Decoder LR: {Config.TRANSFORMER_LEARNING_RATE:.2e}")
+            print(f"✅ Scheduler sıfırlandı (yeni optimizer için)\n")
         
         # --- TRAIN & VALIDATE ---
         train_loss = train_one_epoch(
@@ -375,6 +406,9 @@ def main():
         
         val_loss = validate(val_loader, model, device, epoch)
         val_history.append(val_loss)
+        
+        # --- LR SCHEDULER STEP ---
+        scheduler.step(val_loss)
         
         current_lr = optimizer.param_groups[0]['lr']
         duration = time.time() - start_time
@@ -405,7 +439,8 @@ def main():
             best_val_loss = val_loss
             save_transformer_checkpoint(
                 model, optimizer, scaler, epoch, val_loss,
-                os.path.join(Config.TRANSFORMER_CHECKPOINT_DIR, "best_model")
+                os.path.join(Config.TRANSFORMER_CHECKPOINT_DIR, "best_model"),
+                scheduler=scheduler
             )
         else:
             print(f"❌ Val Loss düşmedi. Best: {best_val_loss:.4f}")
@@ -414,7 +449,8 @@ def main():
         if (epoch + 1) % Config.CHECKPOINT_INTERVAL == 0:
             save_transformer_checkpoint(
                 model, optimizer, scaler, epoch, val_loss,
-                os.path.join(Config.TRANSFORMER_CHECKPOINT_DIR, f"checkpoint_epoch_{epoch+1}")
+                os.path.join(Config.TRANSFORMER_CHECKPOINT_DIR, f"checkpoint_epoch_{epoch+1}"),
+                scheduler=scheduler
             )
         
         # Early stopping

@@ -34,6 +34,9 @@ class Config:
     if torch.cuda.is_available():
         GPU_NAME = torch.cuda.get_device_name(0)
         GPU_MEMORY = torch.cuda.get_device_properties(0).total_memory / 1e9
+        # 🚀 Hız optimizasyonu: cuDNN auto-tuner aktif
+        torch.backends.cudnn.benchmark = True
+        torch.backends.cudnn.deterministic = False
     else:
         GPU_NAME = "CPU"
         GPU_MEMORY = None
@@ -55,7 +58,7 @@ class Config:
     # =========================================================================
     CNN_IMAGE_SIZE = 224
     TRANSFORMER_IMAGE_SIZE = 384
-    NUM_WORKERS = 0  # Windows için 0
+    NUM_WORKERS = 4  # Kaggle/Linux: 4, Windows local: 0 (multiprocessing kısıtı)
     
     # =========================================================================
     # 🧠 CNN-LSTM MODEL PARAMETERS

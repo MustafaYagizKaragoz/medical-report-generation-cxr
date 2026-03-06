@@ -112,7 +112,7 @@ def get_transformer_dataloaders(
     batch_size=4, 
     max_length=150, 
     image_size=384,
-    num_workers=0
+    num_workers=4
 ):
     """
     Eğitim, Doğrulama ve (opsiyonel) Test DataLoader'larını oluşturur.
