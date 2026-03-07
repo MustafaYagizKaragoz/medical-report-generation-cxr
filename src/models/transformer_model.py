@@ -70,9 +70,9 @@ class MedicalTransformer(nn.Module):
         self.model.generation_config.decoder_start_token_id = self.model.config.decoder_start_token_id
         self.model.generation_config.eos_token_id = self.tokenizer.eos_token_id
         self.model.generation_config.pad_token_id = self.tokenizer.pad_token_id
-        # temperature'ı açıkça sıfırla (önceki model.generation_config'ten kalıntı olabilir)
-        if hasattr(self.model.generation_config, 'temperature'):
-            del self.model.generation_config.temperature
+        
+        # temperature varsayilan degerinde (1.0) tutulur, boylece do_sample=False ile celismez
+        self.model.generation_config.temperature = 1.0
 
         # 5. Fine-Tuning Kontrolü
         if freeze_encoder:
@@ -240,16 +240,15 @@ class MedicalTransformer(nn.Module):
             if hasattr(self.model.config, key):
                 delattr(self.model.config, key)
 
-        # ── generation_config'ten temperature'ı temizle ──────────────────
-        # transformers >= 4.45: temperature, do_sample=False ile birlikte
-        # ayarlanmışsa validate() ValueError fırlatır ve kayıt engellenir.
-        gen_cfg = self.model.generation_config
-        if getattr(gen_cfg, 'temperature', None) is not None and not getattr(gen_cfg, 'do_sample', False):
-            try:
-                del gen_cfg.temperature
-            except AttributeError:
-                gen_cfg.temperature = None  # fallback
-
+        # ── generation_config temperature güvenli değere set edilir ───────
+        # validate() şunu kontrol eder:
+        #   if self.temperature is not None and self.temperature != 1.0 → ValueError
+        # Attribute silindiyse (del) → AttributeError!
+        # Çözüm: temperature = 1.0 (varsayılan, do_sample=False ile çelişmez)
+        self.model.generation_config.temperature = 1.0
+        if hasattr(self.model, "decoder") and hasattr(self.model.decoder, "generation_config"):
+            self.model.decoder.generation_config.temperature = 1.0
+        
         self.model.save_pretrained(save_dir)
         self.tokenizer.save_pretrained(save_dir)
         print(f"💾 Model kaydedildi: {save_dir}")
