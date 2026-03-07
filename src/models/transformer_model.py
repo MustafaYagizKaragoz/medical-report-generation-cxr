@@ -58,16 +58,21 @@ class MedicalTransformer(nn.Module):
         # 4. Üretim (Generation) Ayarları
         # ⚠️ Yeni HuggingFace (4.40+): generation param'ları model.config'e DEĞİL
         #    model.generation_config'e yazılmalı (ValueError: generation params in config)
+        # ⚠️ transformers >= 4.45: temperature sadece do_sample=True ile kullanılabilir.
+        #    Beam search (do_sample=False) kullandığımız için temperature KALDIRILDI.
         self.model.generation_config.max_length = max_length
         self.model.generation_config.min_length = 20
         self.model.generation_config.early_stopping = True
         self.model.generation_config.no_repeat_ngram_size = 3
         self.model.generation_config.length_penalty = 1.2
         self.model.generation_config.num_beams = num_beams
-        self.model.generation_config.temperature = 0.8
+        self.model.generation_config.do_sample = False   # Beam search → sampling yok
         self.model.generation_config.decoder_start_token_id = self.model.config.decoder_start_token_id
         self.model.generation_config.eos_token_id = self.tokenizer.eos_token_id
         self.model.generation_config.pad_token_id = self.tokenizer.pad_token_id
+        # temperature'ı açıkça sıfırla (önceki model.generation_config'ten kalıntı olabilir)
+        if hasattr(self.model.generation_config, 'temperature'):
+            del self.model.generation_config.temperature
 
         # 5. Fine-Tuning Kontrolü
         if freeze_encoder:
@@ -227,16 +232,25 @@ class MedicalTransformer(nn.Module):
         """Model ve tokenizer'ı HuggingFace formatında kaydet"""
         import os
         os.makedirs(save_dir, exist_ok=True)
-        
-        # Generation config'i model.config'den temizle (ValueError önlemi)
+
+        # ── model.config'den generation parametrelerini temizle ──────────
         gen_keys = ['max_length', 'min_length', 'early_stopping', 'no_repeat_ngram_size',
-                    'length_penalty', 'num_beams', 'temperature']
+                    'length_penalty', 'num_beams', 'temperature', 'do_sample']
         for key in gen_keys:
             if hasattr(self.model.config, key):
                 delattr(self.model.config, key)
-        
+
+        # ── generation_config'ten temperature'ı temizle ──────────────────
+        # transformers >= 4.45: temperature, do_sample=False ile birlikte
+        # ayarlanmışsa validate() ValueError fırlatır ve kayıt engellenir.
+        gen_cfg = self.model.generation_config
+        if getattr(gen_cfg, 'temperature', None) is not None and not getattr(gen_cfg, 'do_sample', False):
+            try:
+                del gen_cfg.temperature
+            except AttributeError:
+                gen_cfg.temperature = None  # fallback
+
         self.model.save_pretrained(save_dir)
-        self.model.generation_config.save_pretrained(save_dir)  # generation_config.json ayrı kaydedilir
         self.tokenizer.save_pretrained(save_dir)
         print(f"💾 Model kaydedildi: {save_dir}")
     
