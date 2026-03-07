@@ -333,29 +333,35 @@ def main():
     
     # --- CHECKPOINT RESUME ---
     start_epoch = 0
+    _fine_tune_started = False  # Fine-tune flag
+
     if Config.TRANSFORMER_RESUME and os.path.exists(Config.TRANSFORMER_CHECKPOINT_FILE):
         start_epoch, _ = load_transformer_checkpoint(
             Config.TRANSFORMER_CHECKPOINT_FILE, optimizer, scaler, device, scheduler
         )
-        
-        if start_epoch > Config.TRANSFORMER_FINE_TUNE_START_EPOCH:
-            print("🔓 Fine-tuning aşaması başlamış, encoder açılıyor...")
+
+        # Eğer checkpoint fine-tune başladıktan sonrasına aitse encoder'ı aç
+        if start_epoch >= Config.TRANSFORMER_FINE_TUNE_START_EPOCH:
+            print("🔓 Fine-tuning zaten başlamış, encoder açılıyor...")
             model.unfreeze_encoder()
-            
+            _fine_tune_started = True
+
             # Optimizer'ı güncelle (encoder parametreleri dahil)
             optimizer = optim.AdamW([
-                {'params': [p for n, p in model.named_parameters() 
-                           if 'encoder' in n and p.requires_grad], 
+                {'params': [p for n, p in model.named_parameters()
+                           if 'encoder' in n and p.requires_grad],
                  'lr': Config.TRANSFORMER_LEARNING_RATE * 0.1},
-                {'params': [p for n, p in model.named_parameters() 
-                           if 'encoder' not in n and p.requires_grad], 
+                {'params': [p for n, p in model.named_parameters()
+                           if 'encoder' not in n and p.requires_grad],
                  'lr': Config.TRANSFORMER_LEARNING_RATE},
             ], weight_decay=getattr(Config, 'TRANSFORMER_WEIGHT_DECAY', 0.01))
-            
+
             # Scheduler'ı yeni optimizer ile yeniden oluştur
             scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-                optimizer, mode='min', factor=0.5, patience=2, min_lr=1e-7, verbose=True
+                optimizer, mode='min', factor=0.5, patience=2, min_lr=1e-7
             )
+            print(f"   Encoder LR : {Config.TRANSFORMER_LEARNING_RATE * 0.1:.2e}")
+            print(f"   Decoder LR : {Config.TRANSFORMER_LEARNING_RATE:.2e}")
     
     # =====================================================================
     # 🎯 MAIN TRAINING LOOP
@@ -368,30 +374,32 @@ def main():
         start_time = time.time()
         
         # --- FINE-TUNING CHECK ---
-        if epoch == Config.TRANSFORMER_FINE_TUNE_START_EPOCH and epoch > 0:
+        # epoch >= FINE_TUNE_START_EPOCH olduğunda VE henüz açılmadıysa unfreeze et
+        if not _fine_tune_started and epoch >= Config.TRANSFORMER_FINE_TUNE_START_EPOCH:
             print(f"\n{'='*70}")
-            print(f"🔓 FINE-TUNING AŞAMASI BAŞLIYOR!")
+            print(f"🔓 FINE-TUNING AŞAMASI BAŞLIYOR! (Epoch {epoch+1})")
             print(f"{'='*70}")
-            
+
             model.unfreeze_encoder()
-            
+            _fine_tune_started = True
+
             # Differential learning rate
             optimizer = optim.AdamW([
-                {'params': [p for n, p in model.named_parameters() 
-                           if 'encoder' in n and p.requires_grad], 
+                {'params': [p for n, p in model.named_parameters()
+                           if 'encoder' in n and p.requires_grad],
                  'lr': Config.TRANSFORMER_LEARNING_RATE * 0.1,
                  'name': 'encoder'},
-                {'params': [p for n, p in model.named_parameters() 
-                           if 'encoder' not in n and p.requires_grad], 
+                {'params': [p for n, p in model.named_parameters()
+                           if 'encoder' not in n and p.requires_grad],
                  'lr': Config.TRANSFORMER_LEARNING_RATE,
                  'name': 'decoder'},
             ], weight_decay=getattr(Config, 'TRANSFORMER_WEIGHT_DECAY', 0.01))
-            
+
             # Fine-tuning için scheduler'ı sıfırla
             scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-                optimizer, mode='min', factor=0.5, patience=2, min_lr=1e-7, verbose=True
+                optimizer, mode='min', factor=0.5, patience=2, min_lr=1e-7
             )
-            
+
             print(f"✅ Encoder LR: {Config.TRANSFORMER_LEARNING_RATE * 0.1:.2e}")
             print(f"✅ Decoder LR: {Config.TRANSFORMER_LEARNING_RATE:.2e}")
             print(f"✅ Scheduler sıfırlandı (yeni optimizer için)\n")
