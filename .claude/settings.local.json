@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem -Path \"c:\\\\Users\\\\ygz70\\\\Desktop\\\\Bitirme Projesi Yeni\\\\src\" | Select-Object Name, @{Name=\"Type\"; Expression={if\\($_.PSIsContainer\\){\"Folder\"}else{\"File\"}}} | Format-Table -AutoSize)",
+      "PowerShell(& \"C:\\\\Users\\\\ygz70\\\\miniconda3\\\\envs\\\\pytorch\\\\python.exe\" -c \"import gradio; print\\('gradio', gradio.__version__\\)\")",
+      "PowerShell(& \"C:\\\\Users\\\\ygz70\\\\miniconda3\\\\envs\\\\pytorch\\\\python.exe\" -c \"import gradio as gr; t = gr.themes.Soft\\(primary_hue='violet', neutral_hue='slate'\\); print\\('theme OK'\\)\")",
+      "PowerShell(& \"C:\\\\Users\\\\ygz70\\\\miniconda3\\\\envs\\\\pytorch\\\\python.exe\" -c \"import ast; ast.parse\\(open\\('C:/Users/ygz70/Desktop/Uygulama/demo_app.py', encoding='utf-8'\\).read\\(\\)\\); print\\('syntax OK'\\)\")",
+      "PowerShell(& \"C:\\\\Users\\\\ygz70\\\\miniconda3\\\\envs\\\\pytorch\\\\python.exe\" -c \"import ast; ast.parse\\(open\\('C:/Users/ygz70/Desktop/Uygulama/demo_app.py', encoding='utf-8'\\).read\\(\\)\\); print\\('OK'\\)\")"
+    ]
+  }
+}

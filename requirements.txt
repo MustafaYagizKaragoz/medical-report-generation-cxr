@@ -9,6 +9,7 @@ torchvision>=0.15.0
 
 # Transformers (Swin + BioGPT)
 transformers>=4.30.0
+sacremoses>=0.0.53
 
 # Veri İşleme
 pandas>=1.5.0

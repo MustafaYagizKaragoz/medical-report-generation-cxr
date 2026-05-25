@@ -184,7 +184,7 @@ def create_vocabulary_and_dataloaders(
     
     # Training transforms (data augmentation)
     train_transform = transforms.Compose([
-        transforms.Resize((512, 512)),
+        transforms.Resize((384, 384)),
         transforms.ColorJitter(brightness=0.2, contrast=0.2),
         transforms.ToTensor(),
         transforms.Normalize(
@@ -195,7 +195,7 @@ def create_vocabulary_and_dataloaders(
     
     # Validation/Test transforms (no augmentation)
     val_transform = transforms.Compose([
-        transforms.Resize((512, 512)),
+        transforms.Resize((384, 384)),
         transforms.ToTensor(),
         transforms.Normalize(
             mean=[0.485, 0.456, 0.406],

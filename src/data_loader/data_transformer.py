@@ -6,8 +6,10 @@ from PIL import Image
 from torchvision import transforms
 from transformers import AutoTokenizer
 from functools import partial
+# Gelecekteki davranışı kabul et ve uyarıyı kapat
+pd.set_option('future.no_silent_downcasting', True)
 
-TOKENIZER_NAME = "microsoft/BioGPT"
+TOKENIZER_NAME = "razent/SciFive-base-Pubmed_PMC"
 
 class MedicalTransformerDataset(Dataset):
     def __init__(self, csv_file, image_dir, tokenizer, transform=None, max_length=150):
@@ -23,9 +25,20 @@ class MedicalTransformerDataset(Dataset):
         
         self.text_col = "final_report"
 
+        self.pathology_cols = [
+            "Enlarged Cardiomediastinum", "Cardiomegaly", "Lung Opacity", 
+            "Lung Lesion", "Edema", "Consolidation", "Pneumonia", "Atelectasis", 
+            "Pneumothorax", "Pleural Effusion", "Pleural Other", "Fracture", 
+            "Support Devices", "No Finding"
+        ]
+
         # Boş olanları temizle
         self.df = self.df.dropna(subset=[self.text_col, 'image_path']).reset_index(drop=True)
-        print(f"✅ Toplam {len(self.df):,} adet tam rapor (full report) yüklendi.")
+        
+        # Etiketlerin mevcut olup olmadığını kontrol et
+        self.has_labels = all(col in self.df.columns for col in self.pathology_cols)
+        
+        print(f"✅ Toplam {len(self.df):,} adet tam rapor (full report) yüklendi. (Label var mı? {self.has_labels})")
 
     def __len__(self):
         return len(self.df)
@@ -47,9 +60,19 @@ class MedicalTransformerDataset(Dataset):
         # 2. Bütüncül Raporu Al (Temizleyerek)
         text = str(row[self.text_col]).lower().strip()
 
+        # 3. Yalnızca Multi-task 14 Sınıf Etiketleri (Varsa)
+        if self.has_labels:
+            labels_raw = row[self.pathology_cols].fillna(0.0).values
+            labels_clean = torch.tensor(labels_raw.astype(float), dtype=torch.float32)
+            labels_clean[labels_clean == -1.0] = 0.0
+            # labels_clean artık sadece 0.0 ve 1.0 (binary form)
+        else:
+            labels_clean = torch.zeros(len(self.pathology_cols), dtype=torch.float32)
+
         return {
             'image': image,
-            'text': text
+            'text': text,
+            'labels_cls': labels_clean
         }
 
 def transformer_collate_fn(batch, tokenizer, max_length=150):
@@ -69,12 +92,18 @@ def transformer_collate_fn(batch, tokenizer, max_length=150):
         return_tensors="pt"
     )
 
-    return {
+    result = {
         'images': images,
         'input_ids': encoded_inputs['input_ids'],
         'attention_mask': encoded_inputs['attention_mask'],
         'raw_texts': texts
     }
+
+    if 'labels_cls' in batch[0]:
+        labels_cls = torch.stack([item['labels_cls'] for item in batch])
+        result['labels_cls'] = labels_cls
+
+    return result
 
 
 def get_train_transform(image_size=384):
@@ -132,7 +161,7 @@ def get_transformer_dataloaders(
     """
     tokenizer = AutoTokenizer.from_pretrained(TOKENIZER_NAME)
     
-    # PAD token ayarla (BioGPT'de yok)
+    # T5 tokenizer'da pad_token zaten tanımlıdır (genellikle <pad>)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     

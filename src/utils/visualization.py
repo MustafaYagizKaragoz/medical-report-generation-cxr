@@ -1,4 +1,7 @@
+import matplotlib
+matplotlib.use("Agg", force=True)   # Tkinter olmayan backend; force=True zaten yuklu olsa da degistirir
 import matplotlib.pyplot as plt
+
 import os
 
 def plot_loss_curve(train_losses, val_losses, save_dir, filename="loss_curve.png"):
@@ -36,4 +39,4 @@ def plot_loss_curve(train_losses, val_losses, save_dir, filename="loss_curve.png
     plt.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.close() # Hafızayı temizle
     
-    print(f"📈 Grafik güncellendi: {save_path}")
+    print(f"[+] Grafik guncellendi: {save_path}")
