@@ -1,6 +1,6 @@
 # 🏥 Medical Report Generation from Chest X-Rays
 
-Göğüs röntgeni (Chest X-Ray) görüntülerinden otomatik tıbbi rapor üretimi için derin öğrenme sistemi.
+Göğüs röntgeni (Chest X-Ray) görüntülerinden otomatik tıbbi rapor (findings/bulgular) üretimi için geliştirilmiş derin öğrenme sistemi.
 
 > **Bitirme Projesi** — MIMIC-CXR veri seti üzerinde eğitilmiş iki farklı mimari ile karşılaştırmalı çalışma.
 
@@ -8,24 +8,24 @@ Göğüs röntgeni (Chest X-Ray) görüntülerinden otomatik tıbbi rapor üreti
 
 ## 📋 Proje Özeti
 
-Bu proje, radyoloji uzmanlarının iş yükünü azaltmak amacıyla göğüs röntgenlerinden **otomatik "findings" raporu** üreten iki farklı derin öğrenme mimarisi geliştirmiştir:
+Bu proje, radyoloji uzmanlarının iş yükünü azaltmak ve raporlama sürecine karar destek mekanizması sunmak amacıyla göğüs röntgenlerinden **otomatik "findings" raporu** üreten iki farklı derin öğrenme mimarisini karşılaştırmalı olarak uygulamaktadır:
 
 | Model | Encoder | Decoder | Parametre | Durum |
 |-------|---------|---------|-----------|-------|
 | **CNN-LSTM** | DenseNet-121 | 2-Layer LSTM + Attention | ~25M | ✅ Eğitildi |
-| **Transformer** | Swin Transformer Base | BioGPT | ~435M | 🔄 Hazır |
+| **Swin-B + DistilGPT-2** | Swin Transformer Base | DistilGPT-2 | ~200M | ✅ Eğitildi |
 
 ## 🧠 Mimariler
 
-### 1. CNN-LSTM + Attention
-- **Encoder**: ImageNet önceden eğitilmiş DenseNet-121
-- **Decoder**: 2 katmanlı LSTM + Additive Attention + Context Gating
-- **Özellikler**: Sinusoidal positional encoding, teacher forcing, beam search
+### 1. CNN-LSTM + Attention (Klasik Yaklaşım)
+* **Encoder**: ImageNet üzerinde önceden eğitilmiş DenseNet-121. Görüntülerden öznitelik haritası (feature map) çıkarır.
+* **Decoder**: 2 katmanlı LSTM + Additive Attention + Context Gating. Çıkarılan öznitelik haritalarına odaklanarak adım adım kelime tahmini yapar.
+* **Özellikler**: Sinusoidal positional encoding, teacher forcing ve beam search algoritmaları entegre edilmiştir.
 
-### 2. Swin Transformer + BioGPT
-- **Encoder**: `microsoft/swin-base-patch4-window12-384` (384×384 giriş)
-- **Decoder**: `microsoft/BioGPT` (PubMed üzerinde eğitilmiş tıbbi dil modeli)
-- **Özellikler**: HuggingFace VisionEncoderDecoderModel, mixed precision (AMP), gradient accumulation
+### 2. Swin-B + DistilGPT-2 (Modern Transformer Yaklaşımı)
+* **Encoder**: `microsoft/swin-base-patch4-window7-224` (Swin Transformer Base)
+* **Decoder**: `distilgpt2` (Damıtılmış GPT-2 mimarisi)
+* **Özellikler**: HuggingFace `VisionEncoderDecoderModel` mimarisi tabanlıdır. Karışık hassasiyetli eğitim (mixed precision - AMP), gradyan biriktirme (gradient accumulation), ve diferansiyel öğrenme oranları (differential learning rates - Swin encoder için çok düşük, DistilGPT-2 decoder için standart öğrenme hızı) barındırır.
 
 ## 📊 Veri Seti
 
@@ -35,77 +35,113 @@ Bu proje, radyoloji uzmanlarının iş yükünü azaltmak amacıyla göğüs rö
 | Val | ~18,000 |
 | Test | ~18,000 |
 
-**Kaynak**: [MIMIC-CXR](https://physionet.org/content/mimic-cxr/2.0.0/) — Beth Israel Deaconess Medical Center
+**Kaynak**: [MIMIC-CXR](https://physionet.org/content/mimic-cxr/2.0.0/) — Beth Israel Deaconess Medical Center.
+
+---
 
 ## 📁 Proje Yapısı
 
 ```
-├── config.py                    # Tüm konfigürasyonlar (CNN-LSTM & Transformer)
-├── train.py                     # CNN-LSTM eğitim scripti
-├── test.py                      # CNN-LSTM test scripti
-├── train_transformer.py         # Transformer eğitim scripti
-├── test_transformer.py          # Transformer test scripti
-├── requirements.txt             # Bağımlılıklar
+├── config.py                         # Tüm konfigürasyonlar (CNN-LSTM, ViT & Swin)
+├── train.py                          # CNN-LSTM eğitim scripti
+├── test.py                           # CNN-LSTM test scripti
+├── cnn_lstm_predict.py               # Eğitilmiş CNN-LSTM modeli ile çıkarım ve görselleştirme
+├── train_swin_distilgpt2.py          # Swin-B + DistilGPT-2 eğitim scripti
+├── test_swin_distilgpt2.py           # Swin-B + DistilGPT-2 test scripti
+├── predict_swin_distilgpt2.py        # Swin-B + DistilGPT-2 çıkarım ve doğruluk analizi
+├── plot_loss.py                      # Eğitim kayıpları (loss) grafik çizim scripti
+├── visual_grounding_check.py         # Görsel hizalama ve dikkat (grounding) doğrulaması
+├── requirements.txt                  # Python bağımlılıkları ve kütüphaneler
 │
-├── src/
+├── src/                              # Kaynak kodlar
 │   ├── models/
-│   │   ├── cnn_lstm.py          # CNN-LSTM model mimarisi
-│   │   └── transformer_model.py # Swin + BioGPT model mimarisi
+│   │   ├── cnn_lstm.py               # CNN-LSTM model mimarisi tanımı
+│   │   └── swin_distilgpt2.py        # Swin-B + DistilGPT-2 model mimarisi tanımı
 │   │
 │   ├── data_loader/
-│   │   ├── dataset.py           # CNN-LSTM için Dataset & DataLoader
-│   │   ├── data_transformer.py  # Transformer için Dataset & DataLoader
-│   │   └── vocabulary.py        # Kelime haznesi yönetimi
+│   │   ├── dataset.py                # CNN-LSTM için Dataset & DataLoader
+│   │   ├── dataset_swin.py           # Swin-B + DistilGPT-2 için özel Dataset ve DataLoader
+│   │   ├── data_transformer.py       # Vision-Encoder-Decoder modelleri için veri yükleme yardımcıları
+│   │   └── vocabulary.py             # CNN-LSTM için kelime haznesi (vocab) yönetimi
 │   │
 │   └── utils/
-│       ├── early_stopping.py    # Early stopping mekanizması
-│       └── visualization.py     # Loss curve çizimi
+│       ├── early_stopping.py         # Erken durdurma (Early stopping) mekanizması
+│       └── visualization.py          # Sonuçların görselleştirilmesi
 │
 ├── Data/
-│   ├── processed/               # İşlenmiş CSV dosyaları
-│   └── vocab/                   # Vocabulary dosyaları
+│   ├── processed/                    # Ön işlenmiş CSV verileri (train/val/test split'leri)
+│   └── vocab/                        # Oluşturulan vocabulary.pkl dosyası
 │
-├── ProcessData/                 # Veri ön işleme scriptleri
-├── checkpoints_densenet_findings/  # CNN-LSTM checkpoint'leri
-└── checkpoints_transformer/     # Transformer checkpoint'leri
+├── ProcessData/                      # Ham veriyi analiz eden ve bölümlere ayıran scriptler
+├── checkpoints_densenet_findings/     # CNN-LSTM model ağırlıkları (checkpoint)
+└── checkpoints_swin_distilgpt2/      # Swin-B + DistilGPT-2 model ağırlıkları (checkpoint)
 ```
+
+---
 
 ## 🚀 Kurulum ve Kullanım
 
-### Gereksinimler
+### Bağımlılıkların Yüklenmesi
+Gerekli kütüphaneleri yüklemek için aşağıdaki komutu çalıştırın:
 ```bash
 pip install -r requirements.txt
 ```
 
-### CNN-LSTM Eğitimi
+### 1. CNN-LSTM Modeli Kullanımı
+Modeli eğitmek ve test etmek için:
 ```bash
+# Eğitimi başlatır
 python train.py
+
+# Test seti üzerinde değerlendirir
 python test.py
+
+# Görüntü bazlı rapor üretir ve görselleştirme yapar
+python cnn_lstm_predict.py
 ```
 
-### Transformer Eğitimi
+### 2. Swin-B + DistilGPT-2 Modeli Kullanımı
+Transformer modelini eğitmek ve test etmek için:
 ```bash
-python train_transformer.py
-# Test otomatik çalışır veya manuel:
-python test_transformer.py
+# Eğitimi başlatır
+python train_swin_distilgpt2.py
+
+# Test seti üzerinde metrik değerlendirmesi yapar
+python test_swin_distilgpt2.py
+
+# Rastgele görseller seçerek rapor üretimi yapar
+python predict_swin_distilgpt2.py
 ```
+
+### 3. Analiz ve Yardımcı Araçlar
+Eğitim grafiklerini çizmek veya görsel grounding test etmek için:
+```bash
+# Eğitim loglarından loss grafiklerini oluşturur
+python plot_loss.py
+
+# Görsel dikkat / grounding mekanizmasını test eder
+python visual_grounding_check.py
+```
+
+---
 
 ## 📐 Değerlendirme Metrikleri
 
-Modeller aşağıdaki metriklerle değerlendirilmektedir:
-- **BLEU** (1-4): N-gram eşleşme
-- **ROUGE** (1, 2, L): Özetleme kalitesi
-- **METEOR**: Eşanlamlı ve morfolojik eşleşme
-- **CIDEr**: Konsensüs tabanlı görüntü açıklama değerlendirmesi
+Modellerin ürettiği raporlar klinik terimler ve dilbilgisi açısından aşağıdaki metriklerle değerlendirilmektedir:
+- **BLEU (1-4)**: N-gram kelime eşleşmeleri
+- **ROUGE (1, 2, L)**: Rapor özetleme başarısı ve kelime dizilimi doğruluğu
+- **METEOR**: Eşanlamlı kelimeler ve morfolojik varyasyonları dikkate alan eşleşme kalitesi
+- **CIDEr**: Konsensüs tabanlı görüntü açıklama değerlendirmesi (radyolojik terimlerin sıklığına göre ağırlıklandırılmış)
 
-## ⚙️ Konfigürasyon
+## ⚙️ Konfigürasyon Yönetimi
 
-Tüm hiperparametreler `config.py` dosyasından yönetilir:
-- Batch size, learning rate, epoch sayısı
-- Encoder/Decoder boyutları
-- Fine-tuning stratejisi
-- Checkpoint & early stopping ayarları
+Tüm model mimarileri, hiperparametreler ve veri yolları merkezi olarak `config.py` dosyasından yönetilmektedir:
+* Öğrenme oranları (encoder/decoder için diferansiyel oranlar)
+* Batch size, epoch sayısı ve erken durdurma (early stopping) sabır eşiği
+* Kayıt aralıkları ve log klasör tanımlamaları
+
+---
 
 ## 📜 Lisans
 
-Bu proje akademik amaçlı geliştirilmiştir.
+Bu proje akademik ve bitirme projesi araştırma amaçlarıyla geliştirilmiştir.
