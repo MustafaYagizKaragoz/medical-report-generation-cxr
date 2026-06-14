@@ -29,7 +29,7 @@ sys.path.insert(0, str(BASE_DIR))
 
 from config import Config
 from src.data_loader.vocabulary import Vocabulary
-from src.data_loader.dataset import MIMICCXRDatasetCNNLSTM
+from src.data_loader.dataset_cnnlstm import MIMICCXRDatasetCNNLSTM
 from src.models.cnn_lstm import ImageCaptioningModel
 import pandas as pd
 

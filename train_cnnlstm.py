@@ -11,7 +11,7 @@ import inspect
 
 # --- MODÜLER IMPORTLAR ---
 from config import Config
-from src.data_loader.dataset import create_vocabulary_and_dataloaders
+from src.data_loader.dataset_cnnlstm import create_vocabulary_and_dataloaders
 from src.models.cnn_lstm import ImageCaptioningModel 
 from src.utils.visualization import plot_loss_curve
 from src.utils.early_stopping import EarlyStopping 

@@ -17,7 +17,7 @@ from pycocoevalcap.cider.cider import Cider
 
 # Proje importları
 from config import Config
-from src.data_loader.dataset import create_vocabulary_and_dataloaders
+from src.data_loader.dataset_cnnlstm import create_vocabulary_and_dataloaders
 from src.models.cnn_lstm import ImageCaptioningModel
 
 # NLTK gerekli kaynaklar

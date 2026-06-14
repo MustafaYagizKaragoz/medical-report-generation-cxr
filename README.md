@@ -43,8 +43,8 @@ Bu proje, radyoloji uzmanlarının iş yükünü azaltmak ve raporlama sürecine
 
 ```
 ├── config.py                         # Tüm konfigürasyonlar (CNN-LSTM, ViT & Swin)
-├── train.py                          # CNN-LSTM eğitim scripti
-├── test.py                           # CNN-LSTM test scripti
+├── train_cnnlstm.py                  # CNN-LSTM eğitim scripti
+├── test_cnnlstm.py                   # CNN-LSTM test scripti
 ├── cnn_lstm_predict.py               # Eğitilmiş CNN-LSTM modeli ile çıkarım ve görselleştirme
 ├── train_swin_distilgpt2.py          # Swin-B + DistilGPT-2 eğitim scripti
 ├── test_swin_distilgpt2.py           # Swin-B + DistilGPT-2 test scripti
@@ -59,9 +59,8 @@ Bu proje, radyoloji uzmanlarının iş yükünü azaltmak ve raporlama sürecine
 │   │   └── swin_distilgpt2.py        # Swin-B + DistilGPT-2 model mimarisi tanımı
 │   │
 │   ├── data_loader/
-│   │   ├── dataset.py                # CNN-LSTM için Dataset & DataLoader
+│   │   ├── dataset_cnnlstm.py        # CNN-LSTM için Dataset & DataLoader
 │   │   ├── dataset_swin.py           # Swin-B + DistilGPT-2 için özel Dataset ve DataLoader
-│   │   ├── data_transformer.py       # Vision-Encoder-Decoder modelleri için veri yükleme yardımcıları
 │   │   └── vocabulary.py             # CNN-LSTM için kelime haznesi (vocab) yönetimi
 │   │
 │   └── utils/
@@ -91,10 +90,10 @@ pip install -r requirements.txt
 Modeli eğitmek ve test etmek için:
 ```bash
 # Eğitimi başlatır
-python train.py
+python train_cnnlstm.py
 
 # Test seti üzerinde değerlendirir
-python test.py
+python test_cnnlstm.py
 
 # Görüntü bazlı rapor üretir ve görselleştirme yapar
 python cnn_lstm_predict.py
