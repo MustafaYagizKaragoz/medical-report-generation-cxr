@@ -50,41 +50,34 @@ def clean_text(text):
 def parse_caption(caption):
     """
     Caption sütununu 'Findings' ve 'Impression' olarak analiz eder.
-    YENİ STRATEJİ: Öncelik 'Findings' (Bulgular) kısmındadır.
     """
     caption = str(caption)
-    caption_lower = caption.lower()
     
     findings = ""
     impression = ""
     
-    # 'impression:' etiketi varsa oradan böl
-    if 'impression:' in caption_lower:
-        parts = caption_lower.split('impression:')
+    # Case-insensitive split on 'impression:'
+    if re.search(r'impression:', caption, re.IGNORECASE):
+        parts = re.split(r'impression:', caption, maxsplit=1, flags=re.IGNORECASE)
         findings_part = parts[0]
         impression_part = parts[1]
         
-        findings = findings_part.replace('findings:', '').strip()
+        # Case-insensitive strip of 'findings:'
+        findings = re.sub(r'findings:', '', findings_part, flags=re.IGNORECASE).strip()
         impression = impression_part.strip()
     else:
-        # Etiket yoksa tamamını Findings olarak kabul et
-        findings = caption_lower.replace('findings:', '').strip()
-    
+        findings = re.sub(r'findings:', '', caption, flags=re.IGNORECASE).strip()
+        
     clean_f = clean_text(findings)
     clean_i = clean_text(impression)
     
-    # YENİ STRATEJİ: Makaledeki gibi "Findings" (Bulgular) odaklı 
-    # İstersen ikisini birleştirerek Transformer'a maksimum bağlam verebilirsin:
-    # return f"{clean_f} {clean_i}".strip()
+    # Combined Findings & Impression
+    combined_text = f"{clean_f} {clean_i}".strip()
     
-    # Eğer sadece Findings istiyorsan (Makale Standardı):
-    if clean_f and len(clean_f) > 5:
-        return clean_f
-    # Eğer doktor Findings yazmamış, sadece Impression yazmışsa veriyi kaybetmemek için onu al:
-    elif clean_i and len(clean_i) > 2:
-        return clean_i
-    else:
-        return "" # Boş rapor
+    # Strip any remaining 'findings:' or 'impression:' headers case-insensitively
+    combined_text = re.sub(r'\b(findings|impression)\s*:\s*', '', combined_text, flags=re.IGNORECASE)
+    
+    return combined_text.strip()
 
 # ---------------------------------------------------------
 # 2. İŞLEM FONKSİYONU

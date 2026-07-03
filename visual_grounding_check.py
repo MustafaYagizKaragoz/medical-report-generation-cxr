@@ -28,6 +28,16 @@ if _hf_cache_ok(["google/vit-base-patch16-224", "distilgpt2"]):
 
 import os
 import sys
+
+# Support emoji/Unicode prints in Windows console
+if sys.platform.startswith("win"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except AttributeError:
+        import io
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
 import warnings
 import numpy as np
 import torch
@@ -46,26 +56,49 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config import Config
-from src.models.vit_distil2gpt import ViTDistilGPT2ForMTL
+try:
+    from src.models.vit_distil2gpt import ViTDistilGPT2ForMTL
+except ImportError:
+    ViTDistilGPT2ForMTL = None
+
+try:
+    from src.models.swin_distilgpt2 import SwinDistilGPT2ForMTL
+except ImportError:
+    SwinDistilGPT2ForMTL = None
 
 # =========================================================================
-# SABITLER
+# AKTIF MODEL VE YOL TESPITI
 # =========================================================================
-VIT_MODEL_NAME   = "google/vit-base-patch16-224"
-GPT_MODEL_NAME   = "distilgpt2"
-CHECKPOINT_DIR   = os.path.join(Config.BASE_DIR, "checkpoints_vit_distilgpt2")
-BEST_CKPT        = os.path.join(CHECKPOINT_DIR, "best_model_vit_distilgpt2.pth")
-IMAGE_SIZE       = 224
-MAX_NEW_TOKENS   = 120
-NUM_BEAMS        = 4
+SWIN_CKPT = os.path.join(Config.SWIN_CHECKPOINT_DIR, "best_model_swin_distilgpt2.pth")
+if not os.path.exists(SWIN_CKPT):
+    _swa_path = os.path.join(Config.SWIN_CHECKPOINT_DIR, "swa_model_final.pth")
+    if os.path.exists(_swa_path):
+        SWIN_CKPT = _swa_path
 
-VIT_MEAN = [0.5, 0.5, 0.5]
-VIT_STD  = [0.5, 0.5, 0.5]
+VIT_CKPT = os.path.join(Config.BASE_DIR, "checkpoints_vit_distilgpt2", "best_model_vit_distilgpt2.pth")
+
+if os.path.exists(SWIN_CKPT):
+    MODEL_TYPE = "swin"
+    BEST_CKPT = SWIN_CKPT
+    MODEL_NAME = "microsoft/swin-base-patch4-window7-224"
+    MEAN = [0.485, 0.456, 0.406]
+    STD  = [0.229, 0.224, 0.225]
+else:
+    MODEL_TYPE = "vit"
+    BEST_CKPT = VIT_CKPT
+    MODEL_NAME = "google/vit-base-patch16-224"
+    MEAN = [0.5, 0.5, 0.5]
+    STD  = [0.5, 0.5, 0.5]
+
+GPT_MODEL_NAME = "distilgpt2"
+IMAGE_SIZE     = 224
+MAX_NEW_TOKENS = 120
+NUM_BEAMS      = 4
 
 _transform = transforms.Compose([
     transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
     transforms.ToTensor(),
-    transforms.Normalize(mean=VIT_MEAN, std=VIT_STD),
+    transforms.Normalize(mean=MEAN, std=STD),
 ])
 
 
@@ -80,7 +113,7 @@ def load_image(image_path: str) -> torch.Tensor:
 def denorm(t: torch.Tensor) -> np.ndarray:
     """Normalize edilmiş tensörü görüntüye döndür."""
     t = t.squeeze().cpu().float()
-    t = t * torch.tensor(VIT_STD).view(3, 1, 1) + torch.tensor(VIT_MEAN).view(3, 1, 1)
+    t = t * torch.tensor(STD).view(3, 1, 1) + torch.tensor(MEAN).view(3, 1, 1)
     t = t.permute(1, 2, 0).clamp(0, 1).numpy()
     return t
 
@@ -94,11 +127,22 @@ def load_model_and_tokenizer(device: torch.device):
         tokenizer.pad_token    = tokenizer.eos_token
         tokenizer.pad_token_id = tokenizer.eos_token_id
 
-    model = ViTDistilGPT2ForMTL.from_pretrained_mtl(
-        encoder_name=VIT_MODEL_NAME,
-        decoder_name=GPT_MODEL_NAME,
-        enable_gradient_checkpointing=False,
-    ).to(device)
+    if MODEL_TYPE == "swin":
+        if SwinDistilGPT2ForMTL is None:
+            raise ImportError("SwinDistilGPT2ForMTL model dosyası bulunamadı.")
+        model = SwinDistilGPT2ForMTL.from_pretrained_mtl(
+            encoder_name=MODEL_NAME,
+            decoder_name=GPT_MODEL_NAME,
+            enable_gradient_checkpointing=False,
+        ).to(device)
+    else:
+        if ViTDistilGPT2ForMTL is None:
+            raise ImportError("ViTDistilGPT2ForMTL model dosyası bulunamadı.")
+        model = ViTDistilGPT2ForMTL.from_pretrained_mtl(
+            encoder_name=MODEL_NAME,
+            decoder_name=GPT_MODEL_NAME,
+            enable_gradient_checkpointing=False,
+        ).to(device)
 
     model.gpt.config.pad_token_id = tokenizer.pad_token_id
     model.gpt.config.eos_token_id = tokenizer.eos_token_id
@@ -287,7 +331,7 @@ def visualize_results(image_path: str, pixel_values: torch.Tensor,
                             left=0.04, right=0.97, top=0.92, bottom=0.05)
 
     # Başlık
-    fig.suptitle("Visual Grounding Check — ViT-DistilGPT-2",
+    fig.suptitle(f"Visual Grounding Check — {MODEL_TYPE.upper()}-DistilGPT-2",
                  color="#e2e8f0", fontsize=14, fontweight="bold", y=0.97)
 
     dark = {"facecolor": "#161b22"}

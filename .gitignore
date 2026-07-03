@@ -20,12 +20,22 @@ OriginalData/
 *.jpeg
 *.png
 *.dcm
+test_predictions_combined.csv
+
+# Akademik grafiklerin takip edilmesini sağla (istisnalar)
+!cnn_lstm_architecture.png
+!swin_distilgpt2_architecture.png
+!training_loss_curves.png
 
 # ============================================================
 # Model checkpoint'leri (çok büyük — Git'e yüklenMEMELİ)
 # ============================================================
 checkpoints_densenet_findings/
 checkpoints_transformer/
+checkpoints_densenet_findings_image_level/
+checkpoints_densenet_findings_subject_level/
+checkpoints_swin_distilgpt2_image_level/
+checkpoints_swin_distilgpt2_subject_level/
 *.pth
 *.pt
 *.bin
@@ -35,6 +45,8 @@ checkpoints_transformer/
 # Log ve çıktılar
 # ============================================================
 logs/
+logs_image_level/
+logs_subject_level/
 *.log
 wandb/
 

@@ -14,16 +14,19 @@ class Config:
     DATA_DIR  = os.path.join(BASE_DIR, 'Data', 'processed')
     IMAGE_DIR = os.path.join(BASE_DIR, 'OriginalData', 'official_data_iccv_final')
 
+    # Bölümleme Türü (Split Type): "subject_level" (hasta tabanlı) veya "image_level" (sızıntılı eski split)
+    SPLIT_TYPE = "subject_level"
+
     # CSV dosyaları
     TRAIN_PROCESSED_CSV = os.path.join(DATA_DIR, "labeled_reports_train.csv")
     VAL_PROCESSED_CSV   = os.path.join(DATA_DIR, "labeled_reports_val.csv")
     TEST_PROCESSED_CSV  = os.path.join(DATA_DIR, "labeled_reports_test.csv")
 
-    # Checkpoint dizinleri
-    CHECKPOINT_DIR     = os.path.join(BASE_DIR, 'checkpoints_densenet_findings')   # CNN-LSTM (eski)
-    VIT_CHECKPOINT_DIR = os.path.join(BASE_DIR, 'checkpoints_vit_distilgpt2')      # ViT (aktif)
+    # Checkpoint dizinleri (Bölümleme türüne göre otomatik ayrılır)
+    CHECKPOINT_DIR     = os.path.join(BASE_DIR, f'checkpoints_densenet_findings_{SPLIT_TYPE}')   # CNN-LSTM
+    SWIN_CHECKPOINT_DIR = os.path.join(BASE_DIR, f'checkpoints_swin_distilgpt2_{SPLIT_TYPE}')     # Swin-B
 
-    LOG_DIR    = os.path.join(BASE_DIR, 'logs')
+    LOG_DIR    = os.path.join(BASE_DIR, f'logs_{SPLIT_TYPE}')
     VOCAB_PATH = os.path.join(BASE_DIR, 'Data', 'vocab', 'vocabulary.pkl')         # CNN-LSTM (eski)
 
     # =========================================================================
@@ -114,7 +117,7 @@ class Config:
     CNN_ATTENTION_LOSS_WEIGHT = 0.5
 
     # CNN-LSTM Resume
-    RESUME          = False
+    RESUME          = True
     CHECKPOINT_FILE = os.path.join(CHECKPOINT_DIR, "best_model.pth")
 
 
@@ -124,15 +127,14 @@ class Config:
     @staticmethod
     def vit_setup():
         """Sadece ViT eğitimi için gerekli klasörleri oluşturur."""
-        os.makedirs(Config.VIT_CHECKPOINT_DIR, exist_ok=True)
+        os.makedirs(Config.SWIN_CHECKPOINT_DIR, exist_ok=True)
         os.makedirs(Config.LOG_DIR,            exist_ok=True)
 
     @staticmethod
     def setup():
         """Tüm proje klasörlerini oluşturur (eski scriptler için)."""
         os.makedirs(Config.CHECKPOINT_DIR,             exist_ok=True)
-        os.makedirs(Config.TRANSFORMER_CHECKPOINT_DIR, exist_ok=True)
-        os.makedirs(Config.VIT_CHECKPOINT_DIR,         exist_ok=True)
+        os.makedirs(Config.SWIN_CHECKPOINT_DIR,         exist_ok=True)
         os.makedirs(Config.LOG_DIR,                    exist_ok=True)
 
         print(f"\n{'='*70}")

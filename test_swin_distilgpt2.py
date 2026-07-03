@@ -13,14 +13,25 @@ import os as _os
 def _hf_cache_ok(ids):
     root = _os.environ.get("HF_HOME", _os.path.join(_os.path.expanduser("~"), ".cache", "huggingface", "hub"))
     return all(_os.path.isdir(_os.path.join(root, "models--" + m.replace("/", "--"))) for m in ids)
-if _hf_cache_ok(["microsoft/swin-base-patch4-window7-224", "distilgpt2"]):
+if _hf_cache_ok(["microsoft/swin-base-patch4-window7-224", "distilgpt2", "sentence-transformers/all-MiniLM-L6-v2"]):
     _os.environ.setdefault("HF_HUB_OFFLINE", "1")
     _os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
 # ─────────────────────────────────────────────────────────────────────────
 
 import os
+import sys
 import gc
 import json
+
+# Support emoji/Unicode prints in Windows console
+if sys.platform.startswith("win"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except AttributeError:
+        import io
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
 import torch
 import numpy as np
 from pathlib import Path
@@ -296,7 +307,7 @@ def main():
 
     SHUTDOWN_AFTER_TEST = True
 
-    checkpoint_dir = os.path.join(Config.BASE_DIR, CHECKPOINT_DIRNAME)
+    checkpoint_dir = Config.SWIN_CHECKPOINT_DIR
     model_path     = os.path.join(checkpoint_dir, "best_model_swin_distilgpt2.pth")
 
     if not os.path.exists(model_path):
@@ -330,44 +341,77 @@ def main():
         image_size=224,
         num_workers=num_workers,
         tokenizer_name=GPT_MODEL_NAME,
-    )
+    )    # ── Backup Check ──────────────────────────────────────────────────────
+    import pickle
+    backup_path = Path(Config.LOG_DIR) / "temp_test_predictions.pkl"
+    loaded_backup = False
+    
+    if backup_path.exists():
+        print(f"\n💡 Bulunan yedek tahmin dosyası: {backup_path}")
+        print("   Önceki inference sonuçları yükleniyor, 38 dakikalık görsel tahmin adımı atlanıyor!")
+        try:
+            with open(backup_path, "rb") as f:
+                backup_data = pickle.load(f)
+            preds = backup_data["preds"]
+            refs = backup_data["refs"]
+            logits = backup_data["logits"]
+            labels = backup_data["labels"]
+            loaded_backup = True
+            print("   ✅ Tahminler başarıyla yüklendi!")
+        except Exception as e:
+            print(f"   ⚠️ Yedek yüklenirken hata oluştu (silinip baştan başlanıyor): {e}")
 
-    # ── Model ─────────────────────────────────────────────────────────────
-    print("\n📥 Model ağırlıkları yükleniyor...")
-    model = SwinDistilGPT2ForMTL.from_pretrained_mtl(
-        encoder_name=SWIN_MODEL_NAME,
-        decoder_name=GPT_MODEL_NAME,
-        enable_gradient_checkpointing=False,
-    ).to(device)
+    if not loaded_backup:
+        # ── Model ─────────────────────────────────────────────────────────────
+        print("\n📥 Model ağırlıkları yükleniyor...")
+        model = SwinDistilGPT2ForMTL.from_pretrained_mtl(
+            encoder_name=SWIN_MODEL_NAME,
+            decoder_name=GPT_MODEL_NAME,
+            enable_gradient_checkpointing=False,
+        ).to(device)
 
-    ckpt  = torch.load(model_path, map_location=device, weights_only=False)
-    state = ckpt.get("model_state", ckpt)
-    model.load_state_dict(state, strict=False)
-    print("✅ Ağırlıklar yüklendi.")
+        ckpt  = torch.load(model_path, map_location=device, weights_only=False)
+        state = ckpt.get("model_state", ckpt)
+        model.load_state_dict(state, strict=False)
+        print("✅ Ağırlıklar yüklendi.")
 
-    # ── Inference ─────────────────────────────────────────────────────────
-    beam_size    = getattr(Config, "VIT_NUM_BEAMS",   4)
-    max_new_toks = getattr(Config, "VIT_MAX_LENGTH",  150)
+        # ── Inference ─────────────────────────────────────────────────────────
+        beam_size    = getattr(Config, "VIT_NUM_BEAMS",   4)
+        max_new_toks = getattr(Config, "VIT_MAX_LENGTH",  150)
 
-    preds, refs, logits, labels = run_inference(
-        model, test_loader, tokenizer, device,
-        max_new_tokens=max_new_toks,
-        num_beams=beam_size,
-        repetition_penalty=2.0,
-        no_repeat_ngram_size=3,
-        temperature=0.7,
-        top_p=0.9,
-        do_sample=False,
-        early_stopping=True,
-    )
+        preds, refs, logits, labels = run_inference(
+            model, test_loader, tokenizer, device,
+            max_new_tokens=max_new_toks,
+            num_beams=beam_size,
+            repetition_penalty=2.0,
+            no_repeat_ngram_size=3,
+            temperature=0.7,
+            top_p=0.9,
+            do_sample=False,
+            early_stopping=True,
+        )
 
-    preds = [p.strip() or "empty" for p in preds]
-    refs  = [r.strip() or "empty" for r in refs]
+        preds = [p.strip() or "empty" for p in preds]
+        refs  = [r.strip() or "empty" for r in refs]
 
-    print("\n🧹 Model ve tokenizer VRAM'den temizleniyor...")
-    del model, tokenizer, test_loader
-    gc.collect()
-    torch.cuda.empty_cache()
+        print("\n🧹 Model ve tokenizer VRAM'den temizleniyor...")
+        del model, tokenizer, test_loader
+        gc.collect()
+        torch.cuda.empty_cache()
+
+        # Save predictions immediately to backup
+        try:
+            backup_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(backup_path, "wb") as f:
+                pickle.dump({
+                    "preds": preds,
+                    "refs": refs,
+                    "logits": logits,
+                    "labels": labels
+                }, f)
+            print(f"💾 Tahminler yedek dosyasına kaydedildi: {backup_path}")
+        except Exception as e:
+            print(f"⚠️ Tahminler yedeklenirken hata oluştu: {e}")
 
     # ── Metrikler ─────────────────────────────────────────────────────────
     print("\n📐 Metrikler hesaplanıyor...")
@@ -377,11 +421,44 @@ def main():
 
     print("  ▶ Standart NLP (BLEU, ROUGE, METEOR, CIDEr)...")
     nlp_metrics.update(compute_standard_nlp(preds, refs))
-    nlp_metrics.update(compute_bert_score(preds, refs))
-    nlp_metrics.update(compute_sbert_similarity(preds, refs))
+    
+    # Temporarily restore online mode for metric models to download from HuggingFace
+    for env_var in ["HF_HUB_OFFLINE", "TRANSFORMERS_OFFLINE"]:
+        if env_var in os.environ:
+            del os.environ[env_var]
+
+    print("  ▶ BERTScore hesaplanıyor...")
+    try:
+        nlp_metrics.update(compute_bert_score(preds, refs))
+        print("  ✅ BERTScore başarıyla hesaplandı.")
+    except Exception as e:
+        print(f"  ⚠️ BERTScore hesaplanırken hata oluştu: {e}")
+        nlp_metrics.update({
+            "BERTScore-P": 0.0,
+            "BERTScore-R": 0.0,
+            "BERTScore-F1": 0.0
+        })
+
+    print("  ▶ SBERT benzerliği hesaplanıyor...")
+    try:
+        nlp_metrics.update(compute_sbert_similarity(preds, refs))
+        print("  ✅ SBERT benzerliği başarıyla hesaplandı.")
+    except Exception as e:
+        print(f"  ⚠️ SBERT benzerliği hesaplanırken hata oluştu: {e}")
+        nlp_metrics.update({
+            "SBERT-Cosine-Sim": 0.0
+        })
 
     print_results(nlp_metrics, ce_report)
     save_results(nlp_metrics, ce_report, preds, refs, Config.LOG_DIR)
+
+    # Clean up the backup file upon successful completion
+    if backup_path.exists():
+        try:
+            os.remove(backup_path)
+            print("🧹 Geçici yedek tahmin dosyası silindi.")
+        except Exception:
+            pass
 
     if SHUTDOWN_AFTER_TEST:
         os.system("shutdown /s /t 15")

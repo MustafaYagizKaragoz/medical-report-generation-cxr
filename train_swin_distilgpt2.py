@@ -218,7 +218,7 @@ def set_model_phase(model: SwinDistilGPT2ForMTL, is_head_only: bool):
 # =========================================================================
 # CHECKPOINT
 # =========================================================================
-CHECKPOINT_DIR = os.path.join(Config.BASE_DIR, CHECKPOINT_DIRNAME)
+CHECKPOINT_DIR = Config.SWIN_CHECKPOINT_DIR
 
 
 def save_checkpoint(model, optimizer, scheduler, scaler, epoch, val_loss, phase, filepath):

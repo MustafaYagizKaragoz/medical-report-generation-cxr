@@ -353,7 +353,7 @@ def save_results(metrics, predictions, references, save_dir):
 def main():
     Config.setup()
     device = Config.DEVICE
-
+    SHUTDOWN_AFTER_TEST = True
     print(f"\n{'='*70}")
     print(f"🧪 MODEL TEST BAŞLIYOR")
     print(f"{'='*70}")
@@ -421,6 +421,8 @@ def main():
         print(f"  REFERANS : {references[i]}")
         print(f"  TAHMİN   : {predictions[i]}")
     print(f"\n{'='*70}\n")
+    if SHUTDOWN_AFTER_TEST:
+        os.system("shutdown /s /t 15")
 
 
 if __name__ == "__main__":

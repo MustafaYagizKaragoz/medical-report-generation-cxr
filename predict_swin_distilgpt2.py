@@ -18,13 +18,23 @@ import os as _os
 def _hf_cache_ok(ids):
     root = _os.environ.get("HF_HOME", _os.path.join(_os.path.expanduser("~"), ".cache", "huggingface", "hub"))
     return all(_os.path.isdir(_os.path.join(root, "models--" + m.replace("/", "--"))) for m in ids)
-if _hf_cache_ok(["microsoft/swin-base-patch4-window7-224", "distilgpt2"]):
+if _hf_cache_ok(["microsoft/swin-base-patch4-window7-224", "distilgpt2", "sentence-transformers/all-MiniLM-L6-v2"]):
     _os.environ.setdefault("HF_HUB_OFFLINE", "1")
     _os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
 # ─────────────────────────────────────────────────────────────────────────
 
 import os
 import sys
+
+# Support emoji/Unicode prints in Windows console
+if sys.platform.startswith("win"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except AttributeError:
+        import io
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
 import random
 import textwrap
 import warnings
@@ -73,7 +83,7 @@ from transformers import AutoTokenizer
 # ═══════════════════════════════════════════════════════════════════════════
 # AYARLAR
 # ═══════════════════════════════════════════════════════════════════════════
-CHECKPOINT_DIR  = os.path.join(Config.BASE_DIR, "checkpoints_swin_distilgpt2")
+CHECKPOINT_DIR  = Config.SWIN_CHECKPOINT_DIR
 CHECKPOINT_PATH = os.path.join(CHECKPOINT_DIR, "best_model_swin_distilgpt2.pth")
 
 # best_model yoksa SWA checkpoint'ini dene

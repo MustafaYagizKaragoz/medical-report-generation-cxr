@@ -1,6 +1,6 @@
 # 🏥 Medical Report Generation from Chest X-Rays
 
-Göğüs röntgeni (Chest X-Ray) görüntülerinden otomatik tıbbi rapor (findings/bulgular) üretimi için geliştirilmiş derin öğrenme sistemi.
+Göğüs röntgeni (Chest X-Ray) görüntülerinden otomatik radyoloji raporu (combined findings-and-impression) üretimi için geliştirilmiş derin öğrenme sistemi.
 
 > **Bitirme Projesi** — MIMIC-CXR veri seti üzerinde eğitilmiş iki farklı mimari ile karşılaştırmalı çalışma.
 
@@ -8,12 +8,12 @@ Göğüs röntgeni (Chest X-Ray) görüntülerinden otomatik tıbbi rapor (findi
 
 ## 📋 Proje Özeti
 
-Bu proje, radyoloji uzmanlarının iş yükünü azaltmak ve raporlama sürecine karar destek mekanizması sunmak amacıyla göğüs röntgenlerinden **otomatik "findings" raporu** üreten iki farklı derin öğrenme mimarisini karşılaştırmalı olarak uygulamaktadır:
+Bu proje, radyoloji uzmanlarının iş yükünü azaltmak ve raporlama sürecine karar destek mekanizması sunmak amacıyla göğüs röntgenlerinden **otomatik radyoloji raporu** (combined findings-and-impression report generation) üreten iki farklı derin öğrenme mimarisini karşılaştırmalı olarak uygulamaktadır:
 
 | Model | Encoder | Decoder | Parametre | Durum |
 |-------|---------|---------|-----------|-------|
-| **CNN-LSTM** | DenseNet-121 | 2-Layer LSTM + Attention | ~25M | ✅ Eğitildi |
-| **Swin-B + DistilGPT-2** | Swin Transformer Base | DistilGPT-2 | ~200M | ✅ Eğitildi |
+| **CNN-LSTM** | DenseNet-121 | 2-Layer LSTM + Attention | ~29.2M | ✅ Eğitildi |
+| **Swin-B + DistilGPT-2** | Swin Transformer Base | DistilGPT-2 | ~171.4M | ✅ Eğitildi |
 
 ## 🧠 Mimariler
 
