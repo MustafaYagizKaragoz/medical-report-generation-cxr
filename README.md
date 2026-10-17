@@ -29,13 +29,16 @@ Bu proje, radyoloji uzmanlarının iş yükünü azaltmak ve raporlama sürecine
 
 ## 📊 Veri Seti
 
-| Split | Örnek Sayısı |
-|-------|-------------|
-| Train | 178,221 |
-| Val | ~18,000 |
-| Test | ~18,000 |
+| Split | Örnek Sayısı | Hasta Sayısı | Oran |
+|-------|-------------|--------------|------|
+| **Train** | 183,271 | 31,803 | %85.0 |
+| **Validation** | 16,171 | 7,604 | %7.5 |
+| **Test** | 16,175 | 2,784 | %7.5 |
+| **Toplam** | **215,617** | **42,191** | **%100** |
 
-**Kaynak**: [MIMIC-CXR](https://physionet.org/content/mimic-cxr/2.0.0/) — Beth Israel Deaconess Medical Center.
+**Kaynak Veri Seti**:
+* **Kaggle**: [mimic-cxr_dataset by Nikesh Reddy Patlolla](https://www.kaggle.com/datasets/nikeshreddypatlolla/mimic-cxr-dataset/data) (`official_data_iccv_final`, `mimic_cxr_aug_train.csv`, `mimic_cxr_aug_validate.csv`)
+* **Orijinal Taban**: [MIMIC-CXR v2.0.0](https://physionet.org/content/mimic-cxr/2.0.0/) — Beth Israel Deaconess Medical Center / PhysioNet.
 
 ---
 

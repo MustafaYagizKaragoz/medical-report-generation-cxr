@@ -116,7 +116,7 @@ def validate_split_group(train_path, val_path, test_path, group_name):
         print("\n  [DURUM] SUCCESS: Zero patient leakage. Split is perfectly patient-wise!")
 
 def validate_all_data():
-    OUTPUT_DIR = Path(r'C:\Users\ygz70\Desktop\Bitirme Projesi Yeni\Data\processed')
+    OUTPUT_DIR = Path(r'C:\Users\Yagiz\Desktop\Makale\medical-report-generation-cxr\Data\processed')
     
     # Group A: Active training files
     validate_split_group(

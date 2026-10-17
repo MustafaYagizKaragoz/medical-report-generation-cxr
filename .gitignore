@@ -74,3 +74,14 @@ venv/
 env/
 .env/
 .conda/
+
+# ============================================================
+# Denetim / Audit Raporları ve Geçici Dosyalar
+# ============================================================
+*.docx
+*.xlsx
+test_predictions.csv
+chest_healthcare.md
+experiment_plan.txt
+make_*.py
+audit_*.py
