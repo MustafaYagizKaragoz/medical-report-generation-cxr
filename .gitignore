@@ -22,11 +22,6 @@ OriginalData/
 *.dcm
 test_predictions_combined.csv
 
-# Akademik grafiklerin takip edilmesini sağla (istisnalar)
-!cnn_lstm_architecture.png
-!swin_distilgpt2_architecture.png
-!training_loss_curves.png
-
 # ============================================================
 # Model checkpoint'leri (çok büyük — Git'e yüklenMEMELİ)
 # ============================================================
