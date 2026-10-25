@@ -77,6 +77,10 @@ env/
 # ============================================================
 *.docx
 *.xlsx
+*.pdf
+Healthcare_Analytics_Revision_Master_Report.pdf
+Rapor.pdf
+DANISMAN_ON_KONTROL_RAPORU.md
 test_predictions.csv
 chest_healthcare.md
 experiment_plan.txt

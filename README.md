@@ -177,9 +177,6 @@ From the initial 261,137 Kaggle/MIMIC-CXR raw image pool, 45,520 records were pr
 ## 🗂️ Repository Structure
 
 ```
-├── Healthcare_Analytics_Revision_Master_Report.pdf  # 3-Page Executive Master PDF Report
-├── Rapor.pdf                                        # Publication-ready Revision Technical Report
-├── DANISMAN_ON_KONTROL_RAPORU.md                    # Data audit & dry-run pre-check document
 ├── run_full_revision_analysis.py                    # Master one-click orchestration script
 ├── advanced_evaluation_suite.py                     # Bootstrap, permutation & clinical engine
 ├── train_swin_distilgpt2.py                         # Swin-GPT MTL training script
@@ -233,7 +230,7 @@ To reproduce Table 4, 2,000 bootstraps, permutation tests, and clinical evaluati
 ```bash
 python run_full_revision_analysis.py
 ```
-Outputs are automatically written to `experiments/` and `Healthcare_Analytics_Revision_Master_Report.pdf`.
+Outputs are automatically written to `experiments/`.
 
 ### 3. Run Individual Inference
 ```bash
