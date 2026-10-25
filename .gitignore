@@ -31,6 +31,8 @@ checkpoints_densenet_findings_image_level/
 checkpoints_densenet_findings_subject_level/
 checkpoints_swin_distilgpt2_image_level/
 checkpoints_swin_distilgpt2_subject_level/
+experiments/**/checkpoints/
+experiments/*/checkpoints/
 *.pth
 *.pt
 *.bin

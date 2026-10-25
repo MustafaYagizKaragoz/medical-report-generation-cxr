@@ -22,6 +22,8 @@ import os
 import sys
 import gc
 import json
+import argparse
+import pandas as pd
 
 # Support emoji/Unicode prints in Windows console
 if sys.platform.startswith("win"):
@@ -299,19 +301,47 @@ def save_results(nlp_metrics: dict, ce_report: dict, predictions: list, referenc
 
 
 # =========================================================================
+# =========================================================================
+# KOMUT SATIRI ARGÜMANLARI
+# =========================================================================
+def parse_args():
+    parser = argparse.ArgumentParser(description="Test Swin-B + DistilGPT-2 (MTL) Model")
+    parser.add_argument("--checkpoint_path", type=str, default=None,
+                        help="Değerlendirilecek model dosyasının (.pth) tam yolu")
+    parser.add_argument("--log_dir", type=str, default=None,
+                        help="Sonuçların kaydedileceği log dizini")
+    parser.add_argument("--batch_size", type=int, default=16,
+                        help="Test batch size (varsayılan: 16)")
+    parser.add_argument("--beam_size", type=int, default=5,
+                        help="Beam search genişliği (varsayılan: 5)")
+    parser.add_argument("--max_new_tokens", type=int, default=150,
+                        help="Maksimum üretilecek yeni token sayısı (varsayılan: 150)")
+    parser.add_argument("--no_cache", action="store_true", default=False,
+                        help="Önceki temp_test_predictions.pkl önbelleğini yok say, sıfırdan çıkarım yap")
+    parser.add_argument("--save_predictions_csv", type=str, default=None,
+                        help="Tüm test tahminlerini CSV dosyası olarak kaydet")
+    parser.add_argument("--no_shutdown", action="store_true", default=True,
+                        help="Test bittiğinde bilgisayarın otomatik kapanmasını engelle")
+    return parser.parse_args()
+
+
+# =========================================================================
 # ANA FONKSİYON
 # =========================================================================
 def main():
+    args = parse_args()
     Config.vit_setup()
     device = Config.DEVICE
 
-    SHUTDOWN_AFTER_TEST = True
+    SHUTDOWN_AFTER_TEST = not args.no_shutdown
 
     checkpoint_dir = Config.SWIN_CHECKPOINT_DIR
-    model_path     = os.path.join(checkpoint_dir, "best_model_swin_distilgpt2.pth")
+    if args.checkpoint_path is not None:
+        model_path = args.checkpoint_path
+    else:
+        model_path = os.path.join(checkpoint_dir, "best_model_swin_distilgpt2.pth")
 
     if not os.path.exists(model_path):
-        # SWA modeli de kabul et
         swa_path = os.path.join(checkpoint_dir, "swa_model_final.pth")
         if os.path.exists(swa_path):
             model_path = swa_path
@@ -320,13 +350,28 @@ def main():
             print(f"❌ Model bulunamadı: {model_path}")
             return
 
-    print(f"\n{'='*70}")
-    print("🧪 Swin-B + DistilGPT-2 (MTL) TEST BAŞLIYOR")
-    print(f"{'='*70}")
-    print(f"   Model: {model_path}")
+    log_dir = args.log_dir or Config.LOG_DIR
+    os.makedirs(log_dir, exist_ok=True)
 
-    batch_size  = getattr(Config, "VIT_BATCH_SIZE",  4)
-    max_length  = getattr(Config, "VIT_MAX_LENGTH",  150)
+    print(f"\n{'='*70}")
+    print("🧪 Swin-B + DistilGPT-2 (MTL) TEST PROTOKOLÜ")
+    print(f"{'='*70}")
+    print(f"   Model              : {model_path}")
+    print(f"   Log Dir            : {log_dir}")
+    print(f"   No Cache           : {args.no_cache}")
+    print(f"   Batch Size         : {args.batch_size}")
+    print(f"   Beam Search        : {args.beam_size}")
+    print(f"   Max New Tokens     : {args.max_new_tokens}")
+    print(f"   Repetition Penalty : 2.0")
+    print(f"   No-Repeat N-Gram   : 3")
+    print(f"   Sampling           : Kapalı (do_sample=False)")
+    print(f"   Early Stopping     : Açık (early_stopping=True)")
+    print(f"   Test Augmentation  : Yok (p_hflip=0.0)")
+    print(f"   No Shutdown        : {args.no_shutdown}")
+    print(f"{'='*70}\n")
+
+    batch_size  = args.batch_size
+    max_length  = args.max_new_tokens
     num_workers = getattr(Config, "NUM_WORKERS",     0)
 
     # ── Veri ──────────────────────────────────────────────────────────────
@@ -341,12 +386,15 @@ def main():
         image_size=224,
         num_workers=num_workers,
         tokenizer_name=GPT_MODEL_NAME,
-    )    # ── Backup Check ──────────────────────────────────────────────────────
+        allow_black_fallback=False,
+    )
+
+    # ── Backup Check ──────────────────────────────────────────────────────
     import pickle
-    backup_path = Path(Config.LOG_DIR) / "temp_test_predictions.pkl"
+    backup_path = Path(log_dir) / "temp_test_predictions.pkl"
     loaded_backup = False
     
-    if backup_path.exists():
+    if not args.no_cache and backup_path.exists():
         print(f"\n💡 Bulunan yedek tahmin dosyası: {backup_path}")
         print("   Önceki inference sonuçları yükleniyor, 38 dakikalık görsel tahmin adımı atlanıyor!")
         try:
@@ -360,6 +408,8 @@ def main():
             print("   ✅ Tahminler başarıyla yüklendi!")
         except Exception as e:
             print(f"   ⚠️ Yedek yüklenirken hata oluştu (silinip baştan başlanıyor): {e}")
+    elif args.no_cache:
+        print("🔄 '--no_cache' aktif: Önbellek atlanıyor, sıfırdan tam model çıkarımı yapılacak.")
 
     if not loaded_backup:
         # ── Model ─────────────────────────────────────────────────────────────
@@ -376,8 +426,8 @@ def main():
         print("✅ Ağırlıklar yüklendi.")
 
         # ── Inference ─────────────────────────────────────────────────────────
-        beam_size    = getattr(Config, "VIT_NUM_BEAMS",   4)
-        max_new_toks = getattr(Config, "VIT_MAX_LENGTH",  150)
+        beam_size    = args.beam_size
+        max_new_toks = args.max_new_tokens
 
         preds, refs, logits, labels = run_inference(
             model, test_loader, tokenizer, device,
@@ -450,7 +500,25 @@ def main():
         })
 
     print_results(nlp_metrics, ce_report)
-    save_results(nlp_metrics, ce_report, preds, refs, Config.LOG_DIR)
+    save_results(nlp_metrics, ce_report, preds, refs, log_dir)
+
+    if args.save_predictions_csv:
+        save_csv_p = Path(args.save_predictions_csv)
+        save_csv_p.parent.mkdir(parents=True, exist_ok=True)
+        test_meta_df = pd.read_csv(Config.TEST_PROCESSED_CSV)
+        parts = test_meta_df["image_path"].astype(str).str.split("/")
+        subj_ids = parts.str[2]
+        stud_ids = parts.str[3]
+        img_ids  = parts.str[4].str.replace(".jpg", "", regex=False)
+        pred_df = pd.DataFrame({
+            "image_id": img_ids,
+            "subject_id": subj_ids,
+            "study_id": stud_ids,
+            "reference_report": refs,
+            "generated_report": preds,
+        })
+        pred_df.to_csv(save_csv_p, index=False, encoding="utf-8")
+        print(f"💾 Tüm test tahminleri (16.175 satır, tam şema) CSV olarak kaydedildi: {save_csv_p}")
 
     # Clean up the backup file upon successful completion
     if backup_path.exists():

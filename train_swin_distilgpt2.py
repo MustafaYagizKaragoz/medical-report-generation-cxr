@@ -82,15 +82,28 @@ from torch.optim.lr_scheduler import LambdaLR
 from torch.optim.swa_utils import AveragedModel, SWALR
 from tqdm import tqdm
 import pandas as pd
+import argparse
+import random
+import numpy as np
 
 pd.set_option("future.no_silent_downcasting", True)
 
 # ── Proje Importları ──────────────────────────────────────────────────────
 from config import Config
-from src.data_loader.dataset_swin import get_swin_dataloaders
+from src.data_loader.dataset_swin import get_swin_dataloaders, PATHOLOGY_COLS
 from src.models.swin_distilgpt2 import SwinDistilGPT2ForMTL
 from src.utils.visualization import plot_loss_curve
 from src.utils.early_stopping import EarlyStopping
+
+
+def set_seed(seed: int = 42):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
 
 # =========================================================================
@@ -275,12 +288,14 @@ def find_latest_checkpoint(checkpoint_dir: str) -> str | None:
 # LOGGER
 # =========================================================================
 class TrainingLogger:
-    def __init__(self, log_dir: str):
+    def __init__(self, log_dir: str, exp_name: str = "swin_distilgpt2"):
         self.log_dir  = Path(log_dir)
         self.log_dir.mkdir(parents=True, exist_ok=True)
-        self.log_file = self.log_dir / f"swin_distilgpt2_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        self.exp_name = exp_name
+        self.log_file = self.log_dir / f"{exp_name}_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         self.history  = {
             "model_type":     "Swin-B-DistilGPT-2-MTL",
+            "exp_name":       exp_name,
             "epochs":         [],
             "train_losses":   [],
             "val_losses":     [],
@@ -301,6 +316,7 @@ class TrainingLogger:
 
     def summary(self):
         return {
+            "exp_name":        self.exp_name,
             "total_epochs":    len(self.history["epochs"]),
             "best_val_loss":   min(self.history["val_losses"])   if self.history["val_losses"]   else None,
             "best_train_loss": min(self.history["train_losses"]) if self.history["train_losses"] else None,
@@ -452,29 +468,430 @@ def validate(loader, model, device, epoch) -> tuple:
 
 
 # =========================================================================
+# =========================================================================
+# KOMUT SATIRI ARGÜMANLARI
+# =========================================================================
+def parse_args():
+    parser = argparse.ArgumentParser(description="Swin-B + DistilGPT-2 MTL Training & Ablation Pipeline")
+    parser.add_argument("--exp_name", type=str, default="baseline",
+                        help="Deney adı (örn: exp_A_no_hflip, exp_B_no_aux_loss, baseline)")
+    parser.add_argument("--checkpoint_dir", type=str, default=None,
+                        help="Checkpoint kayıt dizini (None ise otomatik izole edilir)")
+    parser.add_argument("--log_dir", type=str, default=None,
+                        help="Log ve grafik kayıt dizini (None ise otomatik izole edilir)")
+    parser.add_argument("--p_hflip", type=float, default=0.3,
+                        help="Yatay çevirme olasılığı (Deney A için 0.0)")
+    parser.add_argument("--cls_loss_weight", type=float, default=0.5,
+                        help="Yardımcı sınıflandırma kaybı ağırlığı (Deney B için 0.0)")
+    parser.add_argument("--batch_size", type=int, default=16,
+                        help="Mini-batch boyutu (varsayılan: 16)")
+    parser.add_argument("--grad_accum", type=int, default=16,
+                        help="Gradyan biriktirme adımı (varsayılan: 16 -> efektif batch 256)")
+    parser.add_argument("--max_train_epochs", type=int, default=11,
+                        help="Eğitilecek gerçek epoch sayısı (orijinal derinlik: 11)")
+    parser.add_argument("--total_scheduler_epochs", type=int, default=100,
+                        help="Scheduler'ın toplam cosine epoch ufku (71.500 adım ölçeği korunur)")
+    parser.add_argument("--seed", type=int, default=42,
+                        help="Rastgelelik tohumu (varsayılan: 42)")
+    parser.add_argument("--allow_black_fallback", action="store_true", default=False,
+                        help="Eksik görüntüler için siyah fallback (varsayılan False: FileNotFoundError fırlatır)")
+    parser.add_argument("--dry_run", action="store_true", default=False,
+                        help="Eğitime başlamadan önce genişletilmiş dry-run doğrulaması yap ve çık")
+    parser.add_argument("--dry_run_batches", type=int, default=16,
+                        help="Dry-run aşama başına batch sayısı (en az 16 = 1 tam optimizer adımı)")
+    parser.add_argument("--no_shutdown", action="store_true", default=True,
+                        help="Eğitim/dry-run bitiminde bilgisayarın otomatik kapanmasını engelle")
+    return parser.parse_args()
+
+
+# =========================================================================
+# GENİŞLETİLMİŞ DRY-RUN DOĞRULAMASI (Danışman Özel Talimatı)
+# =========================================================================
+def run_extended_dry_run(args, device) -> dict:
+    print(f"\n{'='*80}")
+    print("🔬 EXTENDED DRY-RUN VALIDATION (Advisor Mandate)")
+    print(f"{'='*80}")
+    print(f"   Deney Adı        : {args.exp_name}")
+    print(f"   Cihaz            : {device} ({torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU'})")
+    print(f"   Batch Size       : {args.batch_size}")
+    print(f"   Grad Accum Steps : {args.grad_accum}")
+    print(f"   Efektif Batch    : {args.batch_size * args.grad_accum} ({args.dry_run_batches} mini-batch = 1 tam optimizer adımı)")
+    print(f"   p_hflip          : {args.p_hflip} ({'KAPALI (Deney A)' if args.p_hflip == 0.0 else 'AÇIK'})")
+    print(f"   cls_loss_weight  : {args.cls_loss_weight} ({'SIFIR - Sadece Gen (Deney B)' if args.cls_loss_weight == 0.0 else '0.5 MTL'})")
+    print(f"   Black Fallback   : {'AÇIK' if args.allow_black_fallback else 'KAPALI (Eksik görüntü FileNotFoundError fırlatır)'}")
+    print(f"   Checkpoint Dir   : {args.checkpoint_dir}")
+    print(f"   Log Dir          : {args.log_dir}")
+    print(f"{'='*80}\n")
+
+    dry_run_results = {
+        "exp_name": args.exp_name,
+        "timestamp": datetime.now().isoformat(),
+        "device": str(device),
+        "gpu_name": torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CPU",
+        "batch_size": args.batch_size,
+        "grad_accum": args.grad_accum,
+        "effective_batch_size": args.batch_size * args.grad_accum,
+        "p_hflip": args.p_hflip,
+        "cls_loss_weight": args.cls_loss_weight,
+        "checks": {}
+    }
+
+    # 1. TEST STRICT IMAGE LOADING (Eksik görüntü testi)
+    print("1️⃣ Kontrol: Eksik görüntü yükleme katılığı test ediliyor...")
+    from src.data_loader.dataset_swin import MedicalSwinDataset
+    from transformers import AutoTokenizer
+    tokenizer = AutoTokenizer.from_pretrained(GPT_MODEL_NAME)
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+        tokenizer.pad_token_id = tokenizer.eos_token_id
+
+    import tempfile
+    dummy_csv = os.path.join(tempfile.gettempdir(), "dummy_missing_test.csv")
+    pd.DataFrame([{
+        "image_path": "non_existent_folder/fake_cxr_9999.jpg",
+        "final_report": "normal chest radiograph.",
+        **{c: 0.0 for c in PATHOLOGY_COLS}
+    }]).to_csv(dummy_csv, index=False)
+
+    strict_ds = MedicalSwinDataset(
+        csv_file=dummy_csv,
+        image_dir=Config.IMAGE_DIR,
+        tokenizer=tokenizer,
+        allow_black_fallback=False
+    )
+    try:
+        _ = strict_ds[0]
+        raise RuntimeError("HATA: Eksik görüntü FileNotFoundError fırlatmadı!")
+    except FileNotFoundError as fnf:
+        print(f"   ✅ BAŞARILI: allow_black_fallback=False iken eksik görüntü yakalandı: {type(fnf).__name__}")
+        dry_run_results["checks"]["strict_image_loading"] = "PASSED (FileNotFoundError raised as expected)"
+    finally:
+        if os.path.exists(dummy_csv):
+            os.remove(dummy_csv)
+
+    # 2. REAL DATALOADERS
+    print(f"\n2️⃣ Kontrol: Gerçek veri yükleyicileri hazırlanıyor (Batch Size = {args.batch_size})...")
+    train_loader, val_loader, tokenizer = get_swin_dataloaders(
+        train_csv=Config.TRAIN_PROCESSED_CSV,
+        val_csv=Config.VAL_PROCESSED_CSV,
+        image_dir=Config.IMAGE_DIR,
+        batch_size=args.batch_size,
+        max_length=Config.VIT_MAX_LENGTH,
+        image_size=224,
+        num_workers=0,
+        tokenizer_name=GPT_MODEL_NAME,
+        p_hflip=args.p_hflip,
+        allow_black_fallback=args.allow_black_fallback,
+    )
+    dry_run_results["checks"]["train_samples"] = len(train_loader.dataset)
+    dry_run_results["checks"]["val_samples"] = len(val_loader.dataset)
+
+    # 3. BUILD MODEL & OPTIMIZER
+    print("\n3️⃣ Kontrol: Model ve diferansiyel optimizer oluşturuluyor...")
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.reset_peak_memory_stats()
+
+    model = SwinDistilGPT2ForMTL.from_pretrained_mtl(
+        encoder_name=SWIN_MODEL_NAME,
+        decoder_name=GPT_MODEL_NAME,
+        enable_gradient_checkpointing=True,
+        cls_loss_weight=args.cls_loss_weight,
+    ).to(device)
+
+    model.gpt.config.pad_token_id = tokenizer.pad_token_id
+    model.gpt.config.eos_token_id = tokenizer.eos_token_id
+    model.config.pad_token_id     = tokenizer.pad_token_id
+    model.config.eos_token_id     = tokenizer.eos_token_id
+
+    optimizer = build_optimizer(model, weight_decay=Config.SWIN_WEIGHT_DECAY)
+    steps_per_epoch = max(len(train_loader) // args.grad_accum, 1)
+    total_steps = args.total_scheduler_epochs * steps_per_epoch
+    warmup_steps = WARMUP_EPOCHS * steps_per_epoch
+    scheduler = get_warmup_cosine_scheduler(optimizer, warmup_steps, total_steps)
+    scaler = GradScaler() if USE_AMP and device.type == "cuda" else None
+
+    # 4. PHASE 1: HEAD-ONLY (Epoch 0 - Warmup) DRY-RUN
+    print("\n4️⃣ Kontrol: Aşama 1 — Head-Only (Epoch 0 Warmup) simülasyonu...")
+    set_model_phase(model, is_head_only=True)
+    model.train()
+    optimizer.zero_grad(set_to_none=True)
+
+    swin_frozen = all(not p.requires_grad for p in model.swin.parameters())
+    gpt_frozen = all(not p.requires_grad for p in model.gpt.parameters())
+    proj_trainable = all(p.requires_grad for p in model.visual_projection.parameters())
+    cls_trainable = all(p.requires_grad for p in model.classifier_head.parameters())
+    assert swin_frozen, "Swin encoder head-only modunda donmuş olmalıdır!"
+    assert gpt_frozen, "GPT decoder head-only modunda donmuş olmalıdır!"
+    assert proj_trainable, "Visual projection head-only modunda eğitilebilir olmalıdır!"
+    assert cls_trainable, "Classifier head head-only modunda eğitilebilir olmalıdır!"
+    print("   ✅ Head-only requires_grad durumları doğrulandı (Swin/GPT donuk, Proj/Cls açık).")
+
+    head_only_losses = []
+    data_iter = iter(train_loader)
+    for step in range(args.dry_run_batches):
+        batch = next(data_iter)
+        images = batch["images"].to(device)
+        input_ids = batch["input_ids"].to(device)
+        attention_mask = batch["attention_mask"].to(device)
+        labels = batch["labels"].to(device)
+        labels_cls = batch["labels_cls"].to(device)
+
+        ctx = autocast(device_type=device.type) if scaler else contextlib.nullcontext()
+        with ctx:
+            outputs = model(
+                pixel_values=images,
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                labels=labels,
+                labels_cls=labels_cls,
+            )
+            loss = outputs["loss"] / args.grad_accum
+
+        if scaler:
+            scaler.scale(loss).backward()
+        else:
+            loss.backward()
+
+        head_only_losses.append(loss.item() * args.grad_accum)
+
+    proj_grad_exists = any(p.grad is not None and p.grad.abs().sum() > 0 for p in model.visual_projection.parameters())
+    swin_has_no_grad = all(p.grad is None for p in model.swin.parameters())
+    gpt_has_no_grad = all(p.grad is None for p in model.gpt.parameters())
+
+    assert proj_grad_exists, "Visual projection gradyan almalıdır!"
+    assert swin_has_no_grad, "Swin encoder head-only'de gradyan almamalıdır!"
+    assert gpt_has_no_grad, "GPT decoder head-only'de gradyan almamalıdır!"
+
+    if args.cls_loss_weight == 0.0:
+        cls_has_zero_grad = all(p.grad is None or p.grad.abs().sum() == 0 for p in model.classifier_head.parameters())
+        assert cls_has_zero_grad, "Deney B'de (cls_loss_weight=0.0) classifier_head SIFIR gradyan almalıdır!"
+        print("   ✅ Deney B doğrulaması: classifier_head gradyanı TAMAMEN SIFIR!")
+        dry_run_results["checks"]["head_only_cls_grad"] = "ZERO_GRAD (Confirmed for Exp B)"
+    else:
+        cls_grad_exists = any(p.grad is not None and p.grad.abs().sum() > 0 for p in model.classifier_head.parameters())
+        assert cls_grad_exists, "MTL baseline / Deney A'da classifier_head gradyan almalıdır!"
+        print("   ✅ Deney A / Baseline doğrulaması: classifier_head gradyanı aktif.")
+        dry_run_results["checks"]["head_only_cls_grad"] = "ACTIVE_GRAD (Confirmed for MTL/Exp A)"
+
+    if scaler:
+        scaler.unscale_(optimizer)
+        torch.nn.utils.clip_grad_norm_([p for p in model.parameters() if p.requires_grad], GRAD_CLIP)
+        scaler.step(optimizer)
+        scaler.update()
+        scheduler.step()
+        optimizer.zero_grad(set_to_none=True)
+    else:
+        torch.nn.utils.clip_grad_norm_([p for p in model.parameters() if p.requires_grad], GRAD_CLIP)
+        optimizer.step()
+        scheduler.step()
+        optimizer.zero_grad(set_to_none=True)
+
+    print(f"   ✅ Head-only {args.dry_run_batches} mini-batch ve 1 tam optimizer güncellemesi tamamlandı (Ort. Loss: {np.mean(head_only_losses):.4f}).")
+    vram_head_only = torch.cuda.max_memory_allocated() / (1024**2) if torch.cuda.is_available() else 0
+    print(f"   📊 Head-only Peak VRAM: {vram_head_only:.2f} MiB")
+    dry_run_results["checks"]["head_only_optimizer_step"] = "PASSED"
+    dry_run_results["checks"]["head_only_peak_vram_mib"] = round(vram_head_only, 2)
+
+    # 5. PHASE 2: END-TO-END FINE-TUNING (Epoch 2) DRY-RUN
+    print("\n5️⃣ Kontrol: Aşama 2 — End-to-End Fine-Tuning (Epoch 2) simülasyonu...")
+    set_model_phase(model, is_head_only=False)
+    model.train()
+    optimizer.zero_grad(set_to_none=True)
+
+    all_trainable = all(p.requires_grad for p in model.parameters())
+    assert all_trainable, "End-to-end modunda tüm parametreler requires_grad=True olmalıdır!"
+    print("   ✅ End-to-end requires_grad durumu doğrulandı (tüm parametreler açık).")
+
+    end_to_end_losses = []
+    for step in range(args.dry_run_batches):
+        batch = next(data_iter)
+        images = batch["images"].to(device)
+        input_ids = batch["input_ids"].to(device)
+        attention_mask = batch["attention_mask"].to(device)
+        labels = batch["labels"].to(device)
+        labels_cls = batch["labels_cls"].to(device)
+
+        ctx = autocast(device_type=device.type) if scaler else contextlib.nullcontext()
+        with ctx:
+            outputs = model(
+                pixel_values=images,
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                labels=labels,
+                labels_cls=labels_cls,
+            )
+            loss = outputs["loss"] / args.grad_accum
+
+        if scaler:
+            scaler.scale(loss).backward()
+        else:
+            loss.backward()
+
+        end_to_end_losses.append(loss.item() * args.grad_accum)
+
+    swin_grad_exists = any(p.grad is not None and p.grad.abs().sum() > 0 for p in model.swin.parameters())
+    gpt_grad_exists = any(p.grad is not None and p.grad.abs().sum() > 0 for p in model.gpt.parameters())
+    proj_grad_exists = any(p.grad is not None and p.grad.abs().sum() > 0 for p in model.visual_projection.parameters())
+
+    assert swin_grad_exists, "Swin encoder end-to-end'de gradyan almalıdır!"
+    assert gpt_grad_exists, "GPT decoder end-to-end'de gradyan almalıdır!"
+    assert proj_grad_exists, "Visual projection end-to-end'de gradyan almalıdır!"
+
+    if args.cls_loss_weight == 0.0:
+        cls_has_zero_grad = all(p.grad is None or p.grad.abs().sum() == 0 for p in model.classifier_head.parameters())
+        assert cls_has_zero_grad, "Deney B'de end-to-end aşamasında dahi classifier_head SIFIR gradyan almalıdır!"
+        print("   ✅ Deney B end-to-end doğrulaması: classifier_head SIFIR gradyan korundu!")
+        dry_run_results["checks"]["e2e_cls_grad"] = "ZERO_GRAD (Confirmed for Exp B)"
+    else:
+        cls_grad_exists = any(p.grad is not None and p.grad.abs().sum() > 0 for p in model.classifier_head.parameters())
+        assert cls_grad_exists, "MTL/Exp A end-to-end aşamasında classifier_head gradyan almalıdır!"
+        print("   ✅ Deney A / Baseline end-to-end doğrulaması: classifier_head gradyanı aktif.")
+        dry_run_results["checks"]["e2e_cls_grad"] = "ACTIVE_GRAD (Confirmed for MTL/Exp A)"
+
+    if scaler:
+        scaler.unscale_(optimizer)
+        torch.nn.utils.clip_grad_norm_([p for p in model.parameters() if p.requires_grad], GRAD_CLIP)
+        scaler.step(optimizer)
+        scaler.update()
+        scheduler.step()
+        optimizer.zero_grad(set_to_none=True)
+    else:
+        torch.nn.utils.clip_grad_norm_([p for p in model.parameters() if p.requires_grad], GRAD_CLIP)
+        optimizer.step()
+        scheduler.step()
+        optimizer.zero_grad(set_to_none=True)
+
+    print(f"   ✅ End-to-end {args.dry_run_batches} mini-batch ve 1 tam optimizer güncellemesi tamamlandı (Ort. Loss: {np.mean(end_to_end_losses):.4f}).")
+    vram_e2e = torch.cuda.max_memory_allocated() / (1024**2) if torch.cuda.is_available() else 0
+    vram_reserved = torch.cuda.max_memory_reserved() / (1024**2) if torch.cuda.is_available() else 0
+    total_gpu_vram = torch.cuda.get_device_properties(0).total_memory / (1024**2) if torch.cuda.is_available() else 0
+    headroom = total_gpu_vram - vram_reserved
+
+    print(f"\n{'─'*60}")
+    print(f"📊 DONANIM VE VRAM ÖLÇÜM RAPORU (RTX 5070)")
+    print(f"{'─'*60}")
+    print(f"   Peak Allocated VRAM : {vram_e2e:>8.2f} MiB ({vram_e2e/1024:.2f} GB)")
+    print(f"   Peak Reserved VRAM  : {vram_reserved:>8.2f} MiB ({vram_reserved/1024:.2f} GB)")
+    print(f"   Toplam VRAM Kapasite: {total_gpu_vram:>8.2f} MiB ({total_gpu_vram/1024:.2f} GB)")
+    print(f"   Kalan Güvenli Boşluk: {headroom:>8.2f} MiB ({headroom/1024:.2f} GB)")
+    print(f"{'─'*60}")
+
+    dry_run_results["checks"]["e2e_optimizer_step"] = "PASSED"
+    dry_run_results["vram"] = {
+        "peak_allocated_mib": round(vram_e2e, 2),
+        "peak_allocated_gb": round(vram_e2e / 1024, 2),
+        "peak_reserved_mib": round(vram_reserved, 2),
+        "peak_reserved_gb": round(vram_reserved / 1024, 2),
+        "total_capacity_mib": round(total_gpu_vram, 2),
+        "total_capacity_gb": round(total_gpu_vram / 1024, 2),
+        "headroom_mib": round(headroom, 2),
+        "headroom_gb": round(headroom / 1024, 2),
+    }
+
+    # 6. VALIDATION PASS
+    print("\n6️⃣ Kontrol: Doğrulama (Validation) adımı test ediliyor (4 batch)...")
+    model.eval()
+    val_losses = []
+    val_iter = iter(val_loader)
+    with torch.no_grad():
+        for _ in range(4):
+            batch = next(val_iter)
+            images = batch["images"].to(device)
+            input_ids = batch["input_ids"].to(device)
+            attention_mask = batch["attention_mask"].to(device)
+            labels = batch["labels"].to(device)
+            labels_cls = batch["labels_cls"].to(device)
+
+            outputs = model(
+                pixel_values=images,
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                labels=labels,
+                labels_cls=labels_cls,
+            )
+            val_losses.append(outputs["loss"].item())
+
+    print(f"   ✅ Validation 4 batch başarıyla çalıştı (Ort. Val Loss: {np.mean(val_losses):.4f}).")
+    dry_run_results["checks"]["val_pass"] = "PASSED"
+
+    # 7. SAVE DRY RUN REPORT
+    os.makedirs(args.log_dir, exist_ok=True)
+    report_file = os.path.join(args.log_dir, f"dry_run_report_{args.exp_name}.json")
+    with open(report_file, "w", encoding="utf-8") as f:
+        json.dump(dry_run_results, f, indent=2)
+    print(f"\n💾 Dry-run raporu kaydedildi: {report_file}")
+    print(f"\n{'='*80}")
+    print(f"🎉 TÜM TEKNİK KONTROLLER VE DRY-RUN BAŞARIYLA TAMAMLANDI! [{args.exp_name}]")
+    print(f"{'='*80}\n")
+    return dry_run_results
+
+
+# =========================================================================
 # ANA FONKSİYON
 # =========================================================================
 def main():
-    os.makedirs(CHECKPOINT_DIR, exist_ok=True)
-    os.makedirs(Config.LOG_DIR, exist_ok=True)
+    args = parse_args()
+    set_seed(args.seed)
+
+    # ── Dizin İzolasyonu ve Orijinal Dosyaları Koruma Garantisi ────────────
+    if args.checkpoint_dir is None:
+        if args.exp_name == "baseline":
+            checkpoint_dir = Config.SWIN_CHECKPOINT_DIR
+        else:
+            checkpoint_dir = os.path.join("experiments", args.exp_name, "checkpoints")
+    else:
+        checkpoint_dir = args.checkpoint_dir
+
+    if args.log_dir is None:
+        if args.exp_name == "baseline":
+            log_dir = Config.LOG_DIR
+        else:
+            log_dir = os.path.join("experiments", args.exp_name, "logs")
+    else:
+        log_dir = args.log_dir
+
+    args.checkpoint_dir = checkpoint_dir
+    args.log_dir = log_dir
+
+    # Orijinal dosyaların ezilmesini önleyen kritik emniyet kilidi:
+    orig_abs = os.path.abspath(Config.SWIN_CHECKPOINT_DIR).lower()
+    curr_abs = os.path.abspath(checkpoint_dir).lower()
+    if args.exp_name != "baseline" and orig_abs == curr_abs:
+        raise RuntimeError(
+            f"GÜVENLİK ENGELİ: '{args.exp_name}' deneyi orijinal checkpoint dizinine ({orig_abs}) "
+            f"kaydedilemez! Lütfen ayrı bir dizin belirtin veya varsayılan izole yolu kullanın."
+        )
+
+    os.makedirs(checkpoint_dir, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
     device = Config.DEVICE
 
-    BEST_CKPT = os.path.join(CHECKPOINT_DIR, "best_model_swin_distilgpt2.pth")
+    # ── Dry-Run Modu Çağrısı ──────────────────────────────────────────────
+    if args.dry_run:
+        run_extended_dry_run(args, device)
+        return
+
+    BEST_CKPT = os.path.join(checkpoint_dir, f"best_model_{args.exp_name}.pth")
 
     image_size  = 224
     max_length  = getattr(Config, "VIT_MAX_LENGTH",  150)
-    batch_size  = getattr(Config, "VIT_BATCH_SIZE",    4)
+    batch_size  = args.batch_size
     num_workers = getattr(Config, "NUM_WORKERS",       0)
 
     print(f"\n{'='*80}")
-    print("🔬 Swin-B + DistilGPT-2 MTL EĞİTİMİ")
+    print(f"🔬 Swin-B + DistilGPT-2 MTL EĞİTİMİ: [{args.exp_name}]")
     print(f"{'='*80}")
-    print(f"   Cihaz      : {device}")
-    print(f"   Batch Size : {batch_size}")
-    print(f"   Image Size : {image_size}×{image_size}")
-    print(f"   Max Length : {max_length} token")
-    print(f"   Epochs     : {Config.EPOCHS}")
-    print(f"   Checkpoint : {CHECKPOINT_DIR}")
+    print(f"   Cihaz             : {device}")
+    print(f"   Batch Size        : {batch_size}")
+    print(f"   Grad Accum        : {args.grad_accum} (Efektif Batch: {batch_size * args.grad_accum})")
+    print(f"   p_hflip           : {args.p_hflip}")
+    print(f"   cls_loss_weight   : {args.cls_loss_weight}")
+    print(f"   Image Size        : {image_size}×{image_size}")
+    print(f"   Max Length        : {max_length} token")
+    print(f"   Hedef Epoch       : {args.max_train_epochs} (Toplam scheduler ufku: {args.total_scheduler_epochs})")
+    print(f"   Checkpoint Dizin  : {checkpoint_dir}")
+    print(f"   Log Dizin         : {log_dir}")
     print(f"{'='*80}\n")
 
     # ── VERİ ──────────────────────────────────────────────────────────────
@@ -488,6 +905,8 @@ def main():
         image_size=image_size,
         num_workers=num_workers,
         tokenizer_name=GPT_MODEL_NAME,
+        p_hflip=args.p_hflip,
+        allow_black_fallback=args.allow_black_fallback,
     )
 
     # ── MODEL ─────────────────────────────────────────────────────────────
@@ -496,6 +915,7 @@ def main():
         encoder_name=SWIN_MODEL_NAME,
         decoder_name=GPT_MODEL_NAME,
         enable_gradient_checkpointing=True,
+        cls_loss_weight=args.cls_loss_weight,
     ).to(device)
 
     model.gpt.config.pad_token_id = tokenizer.pad_token_id
@@ -509,8 +929,8 @@ def main():
     optimizer = build_optimizer(model, weight_decay=wd)
 
     steps_per_epoch_raw = len(train_loader)
-    steps_per_epoch     = max(steps_per_epoch_raw // GRAD_ACCUM, 1)
-    total_steps         = Config.EPOCHS * steps_per_epoch
+    steps_per_epoch     = max(steps_per_epoch_raw // args.grad_accum, 1)
+    total_steps         = args.total_scheduler_epochs * steps_per_epoch
     warmup_steps        = WARMUP_EPOCHS * steps_per_epoch
 
     scheduler = get_warmup_cosine_scheduler(optimizer, warmup_steps, total_steps)
@@ -521,7 +941,7 @@ def main():
     # ── CHECKPOINT RESUME ─────────────────────────────────────────────────
     start_epoch   = 0
     best_val_loss = float("inf")
-    latest_ckpt   = find_latest_checkpoint(CHECKPOINT_DIR)
+    latest_ckpt   = find_latest_checkpoint(checkpoint_dir)
 
     if latest_ckpt:
         print(f"\n📥 Checkpoint bulundu: {latest_ckpt}")
@@ -543,7 +963,7 @@ def main():
     else:
         print("\n✨ Yeni eğitim başlatılıyor...")
 
-    print_training_plan(Config.EPOCHS, GRAD_ACCUM, batch_size)
+    print_training_plan(args.max_train_epochs, args.grad_accum, batch_size)
 
     # ── SWA HAZIRLIK ──────────────────────────────────────────────────────
     swa_model = AveragedModel(model, device=device)
@@ -562,7 +982,7 @@ def main():
     swa_active = False
 
     # ── TRACKING ──────────────────────────────────────────────────────────
-    logger        = TrainingLogger(Config.LOG_DIR)
+    logger        = TrainingLogger(log_dir, exp_name=args.exp_name)
     train_history = []
     val_history   = []
     early_stopper = EarlyStopping(patience=Config.PATIENCE, min_delta=0.001)
@@ -570,7 +990,7 @@ def main():
     # =========================================================================
     # EĞİTİM DÖNGÜSÜ
     # =========================================================================
-    for epoch in range(start_epoch, Config.EPOCHS):
+    for epoch in range(start_epoch, args.max_train_epochs):
         epoch_start = time.time()
 
         # SWA aktifleşme kontrolü
@@ -595,7 +1015,7 @@ def main():
         # ── Train ─────────────────────────────────────────────────────────
         train_loss, train_gen, train_cls = train_one_epoch(
             train_loader, model, optimizer, scheduler, device, epoch,
-            scaler=scaler, grad_accum_steps=GRAD_ACCUM, grad_clip=GRAD_CLIP,
+            scaler=scaler, grad_accum_steps=args.grad_accum, grad_clip=GRAD_CLIP,
         )
 
         # ── SWA: Ağırlık Ortalaması & Scheduler ───────────────────────────
@@ -618,21 +1038,21 @@ def main():
         # ── Kayıp Grafiği ─────────────────────────────────────────────────
         plot_loss_curve(
             train_history, val_history,
-            save_dir=CHECKPOINT_DIR,
-            filename="swin_distilgpt2_loss.png",
+            save_dir=checkpoint_dir,
+            filename=f"{args.exp_name}_loss.png",
         )
 
         # ── Sonuç Yazdır ──────────────────────────────────────────────────
         n_trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
         swa_tag     = "  [🌀 SWA]" if swa_active else ""
         print(f"\n{'─'*80}")
-        print(f"📊 Epoch {epoch+1}/{Config.EPOCHS}  ({duration/60:.1f} dk)  [{phase_label}]{swa_tag}")
+        print(f"📊 Epoch {epoch+1}/{args.max_train_epochs}  ({duration/60:.1f} dk)  [{phase_label}]{swa_tag}")
         print(f"{'─'*80}")
         print(f"   {'':30s}  {'TRAIN':>10}   {'VAL':>10}")
         print(f"   {'─'*52}")
         print(f"   {'Total Loss':<30s}  {train_loss:>10.4f}   {val_loss:>10.4f}")
         print(f"   {'  ├─ Generation (CE)  ×1.0':<30s}  {train_gen:>10.4f}   {val_gen:>10.4f}")
-        print(f"   {'  └─ Classification (BCE)×0.5':<30s}  {train_cls:>10.4f}   {val_cls:>10.4f}")
+        print(f"   {'  └─ Classification (BCE)×' + str(args.cls_loss_weight):<30s}  {train_cls:>10.4f}   {val_cls:>10.4f}")
         print(f"   {'─'*52}")
         print(f"   Swin LR      : {optimizer.param_groups[0]['lr']:.2e}")
         if len(optimizer.param_groups) > 1:
@@ -651,7 +1071,7 @@ def main():
 
         # ── Periyodik Checkpoint ──────────────────────────────────────────
         if (epoch + 1) % Config.CHECKPOINT_INTERVAL == 0:
-            periodic = os.path.join(CHECKPOINT_DIR, f"swin_checkpoint_epoch_{epoch+1}.pth")
+            periodic = os.path.join(checkpoint_dir, f"{args.exp_name}_checkpoint_epoch_{epoch+1}.pth")
             save_checkpoint(model, optimizer, scheduler, scaler,
                             epoch, val_loss, phase_label, periodic)
 
@@ -665,8 +1085,7 @@ def main():
     if swa_active:
         print("\n🌀 SWA BatchNorm istatistikleri güncelleniyor...")
         torch.optim.swa_utils.update_bn(train_loader, swa_model, device=device)
-        swa_ckpt_path = os.path.join(CHECKPOINT_DIR, "swa_model_final.pth")
-        os.makedirs(CHECKPOINT_DIR, exist_ok=True)
+        swa_ckpt_path = os.path.join(checkpoint_dir, f"{args.exp_name}_swa_model_final.pth")
         torch.save(
             {
                 "model_state": swa_model.module.state_dict(),
@@ -684,6 +1103,7 @@ def main():
     print(f"\n{'='*80}")
     print("🎉 EĞİTİM TAMAMLANDI!")
     print(f"{'='*80}")
+    print(f"   Deney Adı     : {args.exp_name}")
     print(f"   Total Epochs  : {summ['total_epochs']}")
     print(f"   Best Val Loss : {summ['best_val_loss']:.4f}")
     print(f"   Log File      : {summ['log_file']}")
@@ -692,7 +1112,7 @@ def main():
         print(f"   SWA Model     : {swa_ckpt_path}")
     print(f"{'='*80}\n")
 
-    if getattr(Config, "SHUTDOWN_AFTER_TRAIN", False):
+    if getattr(Config, "SHUTDOWN_AFTER_TRAIN", False) and not args.no_shutdown:
         print("⚠️  Bilgisayar 60 saniye içinde kapanacak...")
         time.sleep(5)
         os.system("shutdown /s /t 60")

@@ -132,8 +132,10 @@ class SwinDistilGPT2ForMTL(nn.Module):
         num_classes:       int   = NUM_CLASSES,
         num_prefix_tokens: int   = NUM_PREFIX_TOKENS,
         proj_dropout:      float = 0.1,
+        cls_loss_weight:   float = 0.5,
     ):
         super().__init__()
+        self.cls_loss_weight = cls_loss_weight
 
         # ── Alt Modeller ──────────────────────────────────────────────────
         self.swin = swin_model       # Swin-B Encoder
@@ -297,11 +299,15 @@ class SwinDistilGPT2ForMTL(nn.Module):
             loss_gen = self._compute_gen_loss(logits_lm, labels, num_prefix)
 
         if labels_cls is not None:
-            loss_cls = self._cls_loss_fn(logits_cls, labels_cls)
+            if self.cls_loss_weight > 0.0:
+                loss_cls = self._cls_loss_fn(logits_cls, labels_cls)
+            else:
+                with torch.no_grad():
+                    loss_cls = self._cls_loss_fn(logits_cls, labels_cls)
 
         if loss_gen is not None or loss_cls is not None:
             gen_part = (self.GEN_LOSS_WEIGHT * loss_gen) if loss_gen is not None else 0.0
-            cls_part = (self.CLS_LOSS_WEIGHT * loss_cls) if loss_cls is not None else 0.0
+            cls_part = (self.cls_loss_weight * loss_cls) if (loss_cls is not None and self.cls_loss_weight > 0.0) else 0.0
             total_loss = gen_part + cls_part
 
         return {
@@ -394,6 +400,7 @@ class SwinDistilGPT2ForMTL(nn.Module):
         num_prefix_tokens:            int   = NUM_PREFIX_TOKENS,
         proj_dropout:                 float = 0.1,
         enable_gradient_checkpointing: bool = True,
+        cls_loss_weight:               float = 0.5,
     ) -> "SwinDistilGPT2ForMTL":
         """
         Pretrained Swin-B ve DistilGPT-2'den model oluşturur.
@@ -405,6 +412,7 @@ class SwinDistilGPT2ForMTL(nn.Module):
             num_prefix_tokens: Vizüel prefix için kullanılacak Swin token sayısı (49)
             proj_dropout  : Projeksiyon katmanı dropout oranı
             enable_gradient_checkpointing: VRAM tasarrufu için GC aktif et
+            cls_loss_weight: Sınıflandırma kaybı çarpanı (0.5=orijinal/Deney A, 0.0=Deney B)
         """
         print(f"\n{'='*70}")
         print("🧠 Swin-B + DistilGPT-2 MTL Modeli Oluşturuluyor...")
@@ -413,6 +421,7 @@ class SwinDistilGPT2ForMTL(nn.Module):
         print(f"   Decoder : {decoder_name}")
         print(f"   Sınıf   : {num_classes}")
         print(f"   Prefix  : {num_prefix_tokens} token  (Swin-B 7×7 grid)")
+        print(f"   Cls Loss W: {cls_loss_weight} ({'Deney B (Kapalı)' if cls_loss_weight == 0.0 else 'Orijinal MTL'})")
 
         # ── Swin-B ───────────────────────────────────────────────────────
         print("\n   📷 Swin-B encoder yükleniyor...")
@@ -452,6 +461,7 @@ class SwinDistilGPT2ForMTL(nn.Module):
             num_classes=num_classes,
             num_prefix_tokens=num_prefix_tokens,
             proj_dropout=proj_dropout,
+            cls_loss_weight=cls_loss_weight,
         )
 
         _print_model_stats(model)

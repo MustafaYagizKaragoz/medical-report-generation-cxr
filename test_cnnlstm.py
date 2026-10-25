@@ -4,6 +4,8 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import os
 import json
+import argparse
+import pandas as pd
 import numpy as np
 from pathlib import Path
 from datetime import datetime
@@ -347,18 +349,47 @@ def save_results(metrics, predictions, references, save_dir):
 
 
 # =========================================================================
-# 🎯 ANA FONKSİYON
+# =========================================================================
+# 🎯 KOMUT SATIRI ARGÜMANLARI & ANA FONKSİYON
 # =========================================================================
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Test CNN-LSTM Model")
+    parser.add_argument("--checkpoint_path", type=str, default=None,
+                        help="Checkpoint dosyasının tam yolu")
+    parser.add_argument("--vocab_path", type=str, default=None,
+                        help="Vocabulary dosyasının tam yolu")
+    parser.add_argument("--output_dir", type=str, default=None,
+                        help="Sonuçların kaydedileceği dizin")
+    parser.add_argument("--batch_size", type=int, default=32,
+                        help="Test batch boyutu")
+    parser.add_argument("--beam_size", type=int, default=5,
+                        help="Beam search genişliği")
+    parser.add_argument("--save_predictions_csv", type=str, default=None,
+                        help="Tahminlerin CSV olarak kaydedileceği dosya yolu")
+    parser.add_argument("--no_shutdown", action="store_true", default=True,
+                        help="Test bitince bilgisayarın kapanmasını engelle")
+    return parser.parse_args()
+
+
 def main():
+    args = parse_args()
     Config.setup()
     device = Config.DEVICE
-    SHUTDOWN_AFTER_TEST = True
+    SHUTDOWN_AFTER_TEST = not args.no_shutdown
+
+    checkpoint_file = args.checkpoint_path or Config.CHECKPOINT_FILE
+    vocab_path = args.vocab_path or Config.VOCAB_PATH
+    output_dir = args.output_dir or Config.CHECKPOINT_DIR
+
     print(f"\n{'='*70}")
-    print(f"🧪 MODEL TEST BAŞLIYOR")
+    print(f"🧪 CNN-LSTM MODEL TESTİ BAŞLIYOR")
     print(f"{'='*70}")
-    print(f"📱 Cihaz:      {device}")
-    print(f"📂 Checkpoint: {Config.CHECKPOINT_FILE}")
+    print(f"📱 Cihaz       : {device}")
+    print(f"📂 Checkpoint  : {checkpoint_file}")
+    print(f"📚 Vocab       : {vocab_path}")
+    print(f"📁 Çıktı Dizin : {output_dir}")
+    print(f"🛡️  No Shutdown: {args.no_shutdown}")
     print(f"{'='*70}\n")
 
     # --- VERİ ---
@@ -366,27 +397,23 @@ def main():
     _, _, test_loader, vocab = create_vocabulary_and_dataloaders(
         data_dir=Config.DATA_DIR,
         image_root=Config.IMAGE_DIR,
-        vocab_path=Config.VOCAB_PATH,
-        batch_size=32,           # Test için daha büyük batch olabilir
+        vocab_path=vocab_path,
+        batch_size=args.batch_size,
         num_workers=0,
-        build_vocab=False,       # Vocab zaten hazır
+        build_vocab=False,
         freq_threshold=2,
     )
     print(f"✅ Test seti: {len(test_loader.dataset):,} örnek, {len(test_loader)} batch\n")
 
     # --- MODEL ---
-    model = load_model(Config.CHECKPOINT_FILE, len(vocab), device)
+    model = load_model(checkpoint_file, len(vocab), device)
 
     # --- TAHMİN ---
-    # Beam size: 5 önerilir. Artırınca kalite artar ama yavaşlar.
-    # 3 → hızlı,  5 → dengeli,  10 → yavaş ama en iyi kalite
-    BEAM_SIZE = 5
-
-    print(f"\n🔮 Beam Search başlıyor (beam_size={BEAM_SIZE})...")
-    print(f"⚠️  Greedy'ye göre ~{BEAM_SIZE}x daha yavaş, kalite daha iyi.\n")
+    print(f"\n🔮 Beam Search başlıyor (beam_size={args.beam_size})...")
+    print(f"⚠️  Greedy'ye göre ~{args.beam_size}x daha yavaş, kalite daha iyi.\n")
     predictions, references = generate_predictions(
         model, test_loader, vocab, device,
-        beam_size=BEAM_SIZE, max_len=150
+        beam_size=args.beam_size, max_len=150
     )
     print(f"✅ {len(predictions):,} tahmin üretildi\n")
 
@@ -410,7 +437,25 @@ def main():
     print_results(all_metrics, len(predictions))
 
     # --- KAYDET ---
-    save_results(all_metrics, predictions, references, Config.CHECKPOINT_DIR)
+    save_results(all_metrics, predictions, references, output_dir)
+
+    if args.save_predictions_csv:
+        csv_path = Path(args.save_predictions_csv)
+        csv_path.parent.mkdir(parents=True, exist_ok=True)
+        test_meta_df = pd.read_csv(Config.TEST_PROCESSED_CSV)
+        parts = test_meta_df["image_path"].astype(str).str.split("/")
+        subj_ids = parts.str[2]
+        stud_ids = parts.str[3]
+        img_ids  = parts.str[4].str.replace(".jpg", "", regex=False)
+        pred_df = pd.DataFrame({
+            "image_id": img_ids,
+            "subject_id": subj_ids,
+            "study_id": stud_ids,
+            "reference_report": references,
+            "generated_report": predictions,
+        })
+        pred_df.to_csv(csv_path, index=False, encoding="utf-8")
+        print(f"💾 Tüm test tahminleri (16.175 satır, tam şema) CSV olarak kaydedildi: {csv_path}")
 
     # --- ÖRNEK TAHMİNLER ---
     print(f"\n{'='*70}")
@@ -421,6 +466,7 @@ def main():
         print(f"  REFERANS : {references[i]}")
         print(f"  TAHMİN   : {predictions[i]}")
     print(f"\n{'='*70}\n")
+
     if SHUTDOWN_AFTER_TEST:
         os.system("shutdown /s /t 15")
 

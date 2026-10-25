@@ -60,6 +60,7 @@ class MedicalSwinDataset(Dataset):
         tokenizer,
         transform=None,
         max_length: int = 160,
+        allow_black_fallback: bool = False,
     ):
         self.df = pd.read_csv(csv_file)
         self.image_dir  = image_dir
@@ -67,6 +68,7 @@ class MedicalSwinDataset(Dataset):
         self.transform  = transform
         self.max_length = max_length
         self.text_col   = "final_report"
+        self.allow_black_fallback = allow_black_fallback
 
         self.df       = self.df.dropna(subset=[self.text_col, "image_path"]).reset_index(drop=True)
         self.has_labels = all(col in self.df.columns for col in PATHOLOGY_COLS)
@@ -81,8 +83,11 @@ class MedicalSwinDataset(Dataset):
         img_path = os.path.join(self.image_dir, row["image_path"])
         try:
             image = Image.open(img_path).convert("RGB")
-        except Exception:
-            image = Image.new("RGB", (224, 224), color="black")
+        except Exception as e:
+            if self.allow_black_fallback:
+                image = Image.new("RGB", (224, 224), color="black")
+            else:
+                raise FileNotFoundError(f"HATA: Görüntü dosyası açılamadı ({img_path}): {e}")
 
         if self.transform:
             image = self.transform(image)
@@ -151,17 +156,21 @@ def swin_collate_fn(batch: list) -> dict:
 # =========================================================================
 # TRANSFORMLAR
 # =========================================================================
-def get_train_transform(image_size: int = 224) -> transforms.Compose:
+def get_train_transform(image_size: int = 224, p_hflip: float = 0.3) -> transforms.Compose:
     """Swin-B için eğitim augmentasyonu (hafif, medikal görüntüye uygun)."""
-    return transforms.Compose([
+    tf_list = [
         transforms.Resize((image_size + 16, image_size + 16)),
         transforms.RandomCrop(image_size),
-        transforms.RandomHorizontalFlip(p=0.3),
+    ]
+    if p_hflip > 0.0:
+        tf_list.append(transforms.RandomHorizontalFlip(p=p_hflip))
+    tf_list.extend([
         transforms.RandomRotation(degrees=5),
         transforms.ColorJitter(brightness=0.08, contrast=0.08),
         transforms.ToTensor(),
         transforms.Normalize(mean=SWIN_MEAN, std=SWIN_STD),
     ])
+    return transforms.Compose(tf_list)
 
 
 def get_eval_transform(image_size: int = 224) -> transforms.Compose:
@@ -180,12 +189,14 @@ def get_swin_dataloaders(
     train_csv:      str,
     val_csv:        str,
     image_dir:      str,
-    test_csv:       str  = None,
-    batch_size:     int  = 4,
-    max_length:     int  = 160,
-    image_size:     int  = 224,
-    num_workers:    int  = 0,
-    tokenizer_name: str  = "distilgpt2",
+    test_csv:       str   = None,
+    batch_size:     int   = 4,
+    max_length:     int   = 160,
+    image_size:     int   = 224,
+    num_workers:    int   = 0,
+    tokenizer_name: str   = "distilgpt2",
+    p_hflip:        float = 0.3,
+    allow_black_fallback: bool = False,
 ):
     """
     Swin-B + DistilGPT-2 pipeline için train/val(/test) dataloader'larını döndürür.
@@ -205,8 +216,10 @@ def get_swin_dataloaders(
     print(f"   ✅ EOS token  : '{tokenizer.eos_token}' (id={tokenizer.eos_token_id})")
     print(f"   ✅ PAD token  : '{tokenizer.pad_token}' (id={tokenizer.pad_token_id})")
     print(f"   ℹ️  ImageNet normalization: mean={SWIN_MEAN}, std={SWIN_STD}")
+    print(f"   ℹ️  RandomHorizontalFlip p={p_hflip} ({'AÇIK' if p_hflip > 0 else 'KAPALI (Deney A)'})")
+    print(f"   ℹ️  Siyah görüntü fallback: {'AÇIK' if allow_black_fallback else 'KAPALI (Eksik görüntü hata fırlatır)'}")
 
-    train_tf = get_train_transform(image_size)
+    train_tf = get_train_transform(image_size, p_hflip=p_hflip)
     eval_tf  = get_eval_transform(image_size)
 
     loader_kwargs = dict(
@@ -216,8 +229,8 @@ def get_swin_dataloaders(
         persistent_workers=(num_workers > 0),
     )
 
-    train_ds = MedicalSwinDataset(train_csv, image_dir, tokenizer, train_tf, max_length)
-    val_ds   = MedicalSwinDataset(val_csv,   image_dir, tokenizer, eval_tf,  max_length)
+    train_ds = MedicalSwinDataset(train_csv, image_dir, tokenizer, train_tf, max_length, allow_black_fallback=allow_black_fallback)
+    val_ds   = MedicalSwinDataset(val_csv,   image_dir, tokenizer, eval_tf,  max_length, allow_black_fallback=allow_black_fallback)
 
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True,  **loader_kwargs)
     val_loader   = DataLoader(val_ds,   batch_size=batch_size, shuffle=False, **loader_kwargs)
@@ -226,7 +239,7 @@ def get_swin_dataloaders(
     print(f"   📊 Val  : {len(val_ds):,} örnek | {len(val_loader):,} batch")
 
     if test_csv is not None:
-        test_ds     = MedicalSwinDataset(test_csv, image_dir, tokenizer, eval_tf, max_length)
+        test_ds     = MedicalSwinDataset(test_csv, image_dir, tokenizer, eval_tf, max_length, allow_black_fallback=allow_black_fallback)
         test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, **loader_kwargs)
         print(f"   📊 Test : {len(test_ds):,} örnek | {len(test_loader):,} batch")
         return train_loader, val_loader, test_loader, tokenizer

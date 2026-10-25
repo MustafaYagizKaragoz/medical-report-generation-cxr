@@ -1,0 +1,465 @@
+{
+  "timestamp": "2026-10-25T17:45:37.737412",
+  "table4_nlp_metrics": [
+    {
+      "Metric": "BLEU-1",
+      "CNN-LSTM (Original)": 0.2096,
+      "Swin-GPT (Original)": 0.2144,
+      "Swin-GPT (Exp A: No HFlip)": 0.2633,
+      "Swin-GPT (Exp B: No Aux Loss)": 0.2462
+    },
+    {
+      "Metric": "BLEU-2",
+      "CNN-LSTM (Original)": 0.1306,
+      "Swin-GPT (Original)": 0.1303,
+      "Swin-GPT (Exp A: No HFlip)": 0.1585,
+      "Swin-GPT (Exp B: No Aux Loss)": 0.1478
+    },
+    {
+      "Metric": "BLEU-3",
+      "CNN-LSTM (Original)": 0.0884,
+      "Swin-GPT (Original)": 0.0857,
+      "Swin-GPT (Exp A: No HFlip)": 0.1028,
+      "Swin-GPT (Exp B: No Aux Loss)": 0.0956
+    },
+    {
+      "Metric": "BLEU-4",
+      "CNN-LSTM (Original)": 0.0642,
+      "Swin-GPT (Original)": 0.0608,
+      "Swin-GPT (Exp A: No HFlip)": 0.0719,
+      "Swin-GPT (Exp B: No Aux Loss)": 0.0667
+    },
+    {
+      "Metric": "ROUGE-1",
+      "CNN-LSTM (Original)": 0.3085,
+      "Swin-GPT (Original)": 0.3067,
+      "Swin-GPT (Exp A: No HFlip)": 0.3106,
+      "Swin-GPT (Exp B: No Aux Loss)": 0.2991
+    },
+    {
+      "Metric": "ROUGE-2",
+      "CNN-LSTM (Original)": 0.1146,
+      "Swin-GPT (Original)": 0.1024,
+      "Swin-GPT (Exp A: No HFlip)": 0.1059,
+      "Swin-GPT (Exp B: No Aux Loss)": 0.1036
+    },
+    {
+      "Metric": "ROUGE-L",
+      "CNN-LSTM (Original)": 0.2299,
+      "Swin-GPT (Original)": 0.2144,
+      "Swin-GPT (Exp A: No HFlip)": 0.2146,
+      "Swin-GPT (Exp B: No Aux Loss)": 0.2107
+    },
+    {
+      "Metric": "METEOR",
+      "CNN-LSTM (Original)": 0.2332,
+      "Swin-GPT (Original)": 0.236,
+      "Swin-GPT (Exp A: No HFlip)": 0.2458,
+      "Swin-GPT (Exp B: No Aux Loss)": 0.2367
+    },
+    {
+      "Metric": "CIDEr",
+      "CNN-LSTM (Original)": 0.1134,
+      "Swin-GPT (Original)": 0.0174,
+      "Swin-GPT (Exp A: No HFlip)": 0.0202,
+      "Swin-GPT (Exp B: No Aux Loss)": 0.0179
+    },
+    {
+      "Metric": "SBERT",
+      "CNN-LSTM (Original)": 0.5975,
+      "Swin-GPT (Original)": 0.5969,
+      "Swin-GPT (Exp A: No HFlip)": 0.5947,
+      "Swin-GPT (Exp B: No Aux Loss)": 0.5898
+    }
+  ],
+  "bootstrap_permutation_stats": {
+    "Swin-GPT vs CNN-LSTM": {
+      "BLEU-1": {
+        "mean_model_a": 0.2331,
+        "mean_model_b": 0.2322,
+        "mean_diff (A - B)": 0.0009,
+        "ci_95": [
+          -0.0012,
+          0.0032
+        ],
+        "p_value": "0.4365",
+        "statistically_significant": false
+      },
+      "BLEU-4": {
+        "mean_model_a": 0.0603,
+        "mean_model_b": 0.0649,
+        "mean_diff (A - B)": -0.0046,
+        "ci_95": [
+          -0.006,
+          -0.0033
+        ],
+        "p_value": "< 0.0005",
+        "statistically_significant": true
+      },
+      "ROUGE-L": {
+        "mean_model_a": 0.2144,
+        "mean_model_b": 0.2299,
+        "mean_diff (A - B)": -0.0154,
+        "ci_95": [
+          -0.017,
+          -0.0138
+        ],
+        "p_value": "< 0.0005",
+        "statistically_significant": true
+      }
+    },
+    "Exp A vs Swin-GPT": {
+      "BLEU-1": {
+        "mean_model_a": 0.2457,
+        "mean_model_b": 0.2331,
+        "mean_diff (A - B)": 0.0126,
+        "ci_95": [
+          0.0099,
+          0.0154
+        ],
+        "p_value": "< 0.0005",
+        "statistically_significant": true
+      },
+      "BLEU-4": {
+        "mean_model_a": 0.0615,
+        "mean_model_b": 0.0603,
+        "mean_diff (A - B)": 0.0011,
+        "ci_95": [
+          0.0,
+          0.0023
+        ],
+        "p_value": "0.0405",
+        "statistically_significant": true
+      },
+      "ROUGE-L": {
+        "mean_model_a": 0.2146,
+        "mean_model_b": 0.2144,
+        "mean_diff (A - B)": 0.0002,
+        "ci_95": [
+          -0.0014,
+          0.0016
+        ],
+        "p_value": "0.8160",
+        "statistically_significant": false
+      }
+    },
+    "Exp B vs Swin-GPT": {
+      "BLEU-1": {
+        "mean_model_a": 0.231,
+        "mean_model_b": 0.2331,
+        "mean_diff (A - B)": -0.0021,
+        "ci_95": [
+          -0.0053,
+          0.0009
+        ],
+        "p_value": "0.1675",
+        "statistically_significant": false
+      },
+      "BLEU-4": {
+        "mean_model_a": 0.0575,
+        "mean_model_b": 0.0603,
+        "mean_diff (A - B)": -0.0029,
+        "ci_95": [
+          -0.0041,
+          -0.0017
+        ],
+        "p_value": "< 0.0005",
+        "statistically_significant": true
+      },
+      "ROUGE-L": {
+        "mean_model_a": 0.2107,
+        "mean_model_b": 0.2144,
+        "mean_diff (A - B)": -0.0037,
+        "ci_95": [
+          -0.0053,
+          -0.002
+        ],
+        "p_value": "< 0.0005",
+        "statistically_significant": true
+      }
+    }
+  },
+  "clinical_efficacy": {
+    "CNN-LSTM (Original)": {
+      "U-Zero (Ana Analiz)": {
+        "Macro F1": 0.1353,
+        "Micro F1": 0.2876,
+        "Micro Precision": 0.3973,
+        "Micro Recall": 0.2253
+      },
+      "U-Ones (Duyarl\u0131l\u0131k Analizi)": {
+        "Macro F1": 0.1349,
+        "Micro F1": 0.2857,
+        "Micro Precision": 0.3994,
+        "Micro Recall": 0.2223
+      },
+      "Total Omissions (Atlanan Pozitif Bulgular)": 28902,
+      "Total Unsupported Findings (Referansta Bahsedilmeyen Bulgular)": 12194,
+      "Total Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Bulgular)": 515,
+      "5_Focus_Pathologies": {
+        "Cardiomegaly": {
+          "Precision": 0.2812,
+          "Recall": 0.1433,
+          "F1-Score": 0.1898,
+          "True Positives": 311,
+          "Support (Ref Positive)": 2171,
+          "Omissions (Atlanan Pozitif)": 1860,
+          "Unsupported Findings (Referansta Bahsedilmeyen Pozitif)": 769,
+          "Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Pozitif)": 23
+        },
+        "Pneumonia": {
+          "Precision": 0.0,
+          "Recall": 0.0,
+          "F1-Score": 0.0,
+          "True Positives": 0,
+          "Support (Ref Positive)": 1650,
+          "Omissions (Atlanan Pozitif)": 1650,
+          "Unsupported Findings (Referansta Bahsedilmeyen Pozitif)": 2,
+          "Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Pozitif)": 0
+        },
+        "Atelectasis": {
+          "Precision": 0.5373,
+          "Recall": 0.0076,
+          "F1-Score": 0.015,
+          "True Positives": 36,
+          "Support (Ref Positive)": 4746,
+          "Omissions (Atlanan Pozitif)": 4710,
+          "Unsupported Findings (Referansta Bahsedilmeyen Pozitif)": 31,
+          "Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Pozitif)": 0
+        },
+        "Pneumothorax": {
+          "Precision": 0.4103,
+          "Recall": 0.0245,
+          "F1-Score": 0.0462,
+          "True Positives": 16,
+          "Support (Ref Positive)": 654,
+          "Omissions (Atlanan Pozitif)": 638,
+          "Unsupported Findings (Referansta Bahsedilmeyen Pozitif)": 6,
+          "Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Pozitif)": 17
+        },
+        "Pleural Effusion": {
+          "Precision": 0.5409,
+          "Recall": 0.2192,
+          "F1-Score": 0.312,
+          "True Positives": 873,
+          "Support (Ref Positive)": 3983,
+          "Omissions (Atlanan Pozitif)": 3110,
+          "Unsupported Findings (Referansta Bahsedilmeyen Pozitif)": 436,
+          "Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Pozitif)": 277
+        }
+      }
+    },
+    "Swin-GPT (Original)": {
+      "U-Zero (Ana Analiz)": {
+        "Macro F1": 0.0501,
+        "Micro F1": 0.2029,
+        "Micro Precision": 0.3005,
+        "Micro Recall": 0.1532
+      },
+      "U-Ones (Duyarl\u0131l\u0131k Analizi)": {
+        "Macro F1": 0.0501,
+        "Micro F1": 0.2004,
+        "Micro Precision": 0.3006,
+        "Micro Recall": 0.1503
+      },
+      "Total Omissions (Atlanan Pozitif Bulgular)": 31595,
+      "Total Unsupported Findings (Referansta Bahsedilmeyen Bulgular)": 13265,
+      "Total Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Bulgular)": 35,
+      "5_Focus_Pathologies": {
+        "Cardiomegaly": {
+          "Precision": 0.1765,
+          "Recall": 0.0014,
+          "F1-Score": 0.0027,
+          "True Positives": 3,
+          "Support (Ref Positive)": 2171,
+          "Omissions (Atlanan Pozitif)": 2168,
+          "Unsupported Findings (Referansta Bahsedilmeyen Pozitif)": 14,
+          "Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Pozitif)": 0
+        },
+        "Pneumonia": {
+          "Precision": 0.0,
+          "Recall": 0.0,
+          "F1-Score": 0.0,
+          "True Positives": 0,
+          "Support (Ref Positive)": 1650,
+          "Omissions (Atlanan Pozitif)": 1650,
+          "Unsupported Findings (Referansta Bahsedilmeyen Pozitif)": 2,
+          "Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Pozitif)": 0
+        },
+        "Atelectasis": {
+          "Precision": 0.3111,
+          "Recall": 0.0029,
+          "F1-Score": 0.0058,
+          "True Positives": 14,
+          "Support (Ref Positive)": 4746,
+          "Omissions (Atlanan Pozitif)": 4732,
+          "Unsupported Findings (Referansta Bahsedilmeyen Pozitif)": 31,
+          "Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Pozitif)": 0
+        },
+        "Pneumothorax": {
+          "Precision": 0.0,
+          "Recall": 0.0,
+          "F1-Score": 0.0,
+          "True Positives": 0,
+          "Support (Ref Positive)": 654,
+          "Omissions (Atlanan Pozitif)": 654,
+          "Unsupported Findings (Referansta Bahsedilmeyen Pozitif)": 0,
+          "Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Pozitif)": 0
+        },
+        "Pleural Effusion": {
+          "Precision": 0.4286,
+          "Recall": 0.0008,
+          "F1-Score": 0.0015,
+          "True Positives": 3,
+          "Support (Ref Positive)": 3983,
+          "Omissions (Atlanan Pozitif)": 3980,
+          "Unsupported Findings (Referansta Bahsedilmeyen Pozitif)": 2,
+          "Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Pozitif)": 2
+        }
+      }
+    },
+    "Swin-GPT (Exp A: No HFlip)": {
+      "U-Zero (Ana Analiz)": {
+        "Macro F1": 0.1032,
+        "Micro F1": 0.2536,
+        "Micro Precision": 0.3311,
+        "Micro Recall": 0.2055
+      },
+      "U-Ones (Duyarl\u0131l\u0131k Analizi)": {
+        "Macro F1": 0.103,
+        "Micro F1": 0.2512,
+        "Micro Precision": 0.3318,
+        "Micro Recall": 0.2021
+      },
+      "Total Omissions (Atlanan Pozitif Bulgular)": 29642,
+      "Total Unsupported Findings (Referansta Bahsedilmeyen Bulgular)": 15153,
+      "Total Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Bulgular)": 320,
+      "5_Focus_Pathologies": {
+        "Cardiomegaly": {
+          "Precision": 0.2185,
+          "Recall": 0.0152,
+          "F1-Score": 0.0284,
+          "True Positives": 33,
+          "Support (Ref Positive)": 2171,
+          "Omissions (Atlanan Pozitif)": 2138,
+          "Unsupported Findings (Referansta Bahsedilmeyen Pozitif)": 113,
+          "Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Pozitif)": 5
+        },
+        "Pneumonia": {
+          "Precision": 0.1538,
+          "Recall": 0.0036,
+          "F1-Score": 0.0071,
+          "True Positives": 6,
+          "Support (Ref Positive)": 1650,
+          "Omissions (Atlanan Pozitif)": 1644,
+          "Unsupported Findings (Referansta Bahsedilmeyen Pozitif)": 29,
+          "Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Pozitif)": 3
+        },
+        "Atelectasis": {
+          "Precision": 0.3573,
+          "Recall": 0.0828,
+          "F1-Score": 0.1345,
+          "True Positives": 393,
+          "Support (Ref Positive)": 4746,
+          "Omissions (Atlanan Pozitif)": 4353,
+          "Unsupported Findings (Referansta Bahsedilmeyen Pozitif)": 694,
+          "Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Pozitif)": 8
+        },
+        "Pneumothorax": {
+          "Precision": 0.1333,
+          "Recall": 0.0122,
+          "F1-Score": 0.0224,
+          "True Positives": 8,
+          "Support (Ref Positive)": 654,
+          "Omissions (Atlanan Pozitif)": 646,
+          "Unsupported Findings (Referansta Bahsedilmeyen Pozitif)": 23,
+          "Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Pozitif)": 29
+        },
+        "Pleural Effusion": {
+          "Precision": 0.4313,
+          "Recall": 0.0346,
+          "F1-Score": 0.0641,
+          "True Positives": 138,
+          "Support (Ref Positive)": 3983,
+          "Omissions (Atlanan Pozitif)": 3845,
+          "Unsupported Findings (Referansta Bahsedilmeyen Pozitif)": 80,
+          "Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Pozitif)": 97
+        }
+      }
+    },
+    "Swin-GPT (Exp B: No Aux Loss)": {
+      "U-Zero (Ana Analiz)": {
+        "Macro F1": 0.1085,
+        "Micro F1": 0.2589,
+        "Micro Precision": 0.3218,
+        "Micro Recall": 0.2166
+      },
+      "U-Ones (Duyarl\u0131l\u0131k Analizi)": {
+        "Macro F1": 0.1088,
+        "Micro F1": 0.2571,
+        "Micro Precision": 0.323,
+        "Micro Recall": 0.2136
+      },
+      "Total Omissions (Atlanan Pozitif Bulgular)": 29227,
+      "Total Unsupported Findings (Referansta Bahsedilmeyen Bulgular)": 16687,
+      "Total Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Bulgular)": 319,
+      "5_Focus_Pathologies": {
+        "Cardiomegaly": {
+          "Precision": 0.1723,
+          "Recall": 0.0258,
+          "F1-Score": 0.0449,
+          "True Positives": 56,
+          "Support (Ref Positive)": 2171,
+          "Omissions (Atlanan Pozitif)": 2115,
+          "Unsupported Findings (Referansta Bahsedilmeyen Pozitif)": 251,
+          "Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Pozitif)": 16
+        },
+        "Pneumonia": {
+          "Precision": 0.1429,
+          "Recall": 0.0024,
+          "F1-Score": 0.0048,
+          "True Positives": 4,
+          "Support (Ref Positive)": 1650,
+          "Omissions (Atlanan Pozitif)": 1646,
+          "Unsupported Findings (Referansta Bahsedilmeyen Pozitif)": 22,
+          "Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Pozitif)": 2
+        },
+        "Atelectasis": {
+          "Precision": 0.347,
+          "Recall": 0.0889,
+          "F1-Score": 0.1416,
+          "True Positives": 422,
+          "Support (Ref Positive)": 4746,
+          "Omissions (Atlanan Pozitif)": 4324,
+          "Unsupported Findings (Referansta Bahsedilmeyen Pozitif)": 780,
+          "Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Pozitif)": 4
+        },
+        "Pneumothorax": {
+          "Precision": 0.1358,
+          "Recall": 0.0168,
+          "F1-Score": 0.0299,
+          "True Positives": 11,
+          "Support (Ref Positive)": 654,
+          "Omissions (Atlanan Pozitif)": 643,
+          "Unsupported Findings (Referansta Bahsedilmeyen Pozitif)": 36,
+          "Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Pozitif)": 34
+        },
+        "Pleural Effusion": {
+          "Precision": 0.4024,
+          "Recall": 0.0341,
+          "F1-Score": 0.0629,
+          "True Positives": 136,
+          "Support (Ref Positive)": 3983,
+          "Omissions (Atlanan Pozitif)": 3847,
+          "Unsupported Findings (Referansta Bahsedilmeyen Pozitif)": 89,
+          "Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Pozitif)": 107
+        }
+      }
+    }
+  },
+  "audit_metadata": {
+    "total_images": 215617,
+    "test_images": 16175,
+    "patients": 2784
+  }
+}
