@@ -1,73 +1,73 @@
 {
-  "timestamp": "2026-10-25T17:45:37.737412",
+  "timestamp": "2026-10-26T21:03:36.356610",
   "table4_nlp_metrics": [
     {
       "Metric": "BLEU-1",
       "CNN-LSTM (Original)": 0.2096,
-      "Swin-GPT (Original)": 0.2144,
+      "Swin-GPT (Original)": 0.2535,
       "Swin-GPT (Exp A: No HFlip)": 0.2633,
       "Swin-GPT (Exp B: No Aux Loss)": 0.2462
     },
     {
       "Metric": "BLEU-2",
       "CNN-LSTM (Original)": 0.1306,
-      "Swin-GPT (Original)": 0.1303,
+      "Swin-GPT (Original)": 0.1507,
       "Swin-GPT (Exp A: No HFlip)": 0.1585,
       "Swin-GPT (Exp B: No Aux Loss)": 0.1478
     },
     {
       "Metric": "BLEU-3",
       "CNN-LSTM (Original)": 0.0884,
-      "Swin-GPT (Original)": 0.0857,
+      "Swin-GPT (Original)": 0.0968,
       "Swin-GPT (Exp A: No HFlip)": 0.1028,
       "Swin-GPT (Exp B: No Aux Loss)": 0.0956
     },
     {
       "Metric": "BLEU-4",
       "CNN-LSTM (Original)": 0.0642,
-      "Swin-GPT (Original)": 0.0608,
+      "Swin-GPT (Original)": 0.0675,
       "Swin-GPT (Exp A: No HFlip)": 0.0719,
       "Swin-GPT (Exp B: No Aux Loss)": 0.0667
     },
     {
       "Metric": "ROUGE-1",
       "CNN-LSTM (Original)": 0.3085,
-      "Swin-GPT (Original)": 0.3067,
+      "Swin-GPT (Original)": 0.3048,
       "Swin-GPT (Exp A: No HFlip)": 0.3106,
       "Swin-GPT (Exp B: No Aux Loss)": 0.2991
     },
     {
       "Metric": "ROUGE-2",
       "CNN-LSTM (Original)": 0.1146,
-      "Swin-GPT (Original)": 0.1024,
+      "Swin-GPT (Original)": 0.1004,
       "Swin-GPT (Exp A: No HFlip)": 0.1059,
       "Swin-GPT (Exp B: No Aux Loss)": 0.1036
     },
     {
       "Metric": "ROUGE-L",
       "CNN-LSTM (Original)": 0.2299,
-      "Swin-GPT (Original)": 0.2144,
+      "Swin-GPT (Original)": 0.2106,
       "Swin-GPT (Exp A: No HFlip)": 0.2146,
       "Swin-GPT (Exp B: No Aux Loss)": 0.2107
     },
     {
       "Metric": "METEOR",
       "CNN-LSTM (Original)": 0.2332,
-      "Swin-GPT (Original)": 0.236,
+      "Swin-GPT (Original)": 0.2397,
       "Swin-GPT (Exp A: No HFlip)": 0.2458,
       "Swin-GPT (Exp B: No Aux Loss)": 0.2367
     },
     {
       "Metric": "CIDEr",
       "CNN-LSTM (Original)": 0.1134,
-      "Swin-GPT (Original)": 0.0174,
+      "Swin-GPT (Original)": 0.0193,
       "Swin-GPT (Exp A: No HFlip)": 0.0202,
       "Swin-GPT (Exp B: No Aux Loss)": 0.0179
     },
     {
       "Metric": "SBERT",
       "CNN-LSTM (Original)": 0.5975,
-      "Swin-GPT (Original)": 0.5969,
+      "Swin-GPT (Original)": 0.5859,
       "Swin-GPT (Exp A: No HFlip)": 0.5947,
       "Swin-GPT (Exp B: No Aux Loss)": 0.5898
     }
@@ -75,107 +75,428 @@
   "bootstrap_permutation_stats": {
     "Swin-GPT vs CNN-LSTM": {
       "BLEU-1": {
-        "mean_model_a": 0.2331,
+        "mean_model_a": 0.2404,
         "mean_model_b": 0.2322,
-        "mean_diff (A - B)": 0.0009,
+        "mean_diff (A - B)": 0.0082,
         "ci_95": [
-          -0.0012,
-          0.0032
+          0.005,
+          0.0119
         ],
-        "p_value": "0.4365",
-        "statistically_significant": false
+        "p_val_numeric": 0.0,
+        "p_value": "< 0.0005",
+        "statistically_significant": true,
+        "p_value_holm": "< 0.0005",
+        "significant_holm": true
+      },
+      "BLEU-2": {
+        "mean_model_a": 0.1392,
+        "mean_model_b": 0.1402,
+        "mean_diff (A - B)": -0.001,
+        "ci_95": [
+          -0.0032,
+          0.001
+        ],
+        "p_val_numeric": 0.359,
+        "p_value": "0.3590",
+        "statistically_significant": false,
+        "p_value_holm": "0.3590",
+        "significant_holm": false
+      },
+      "BLEU-3": {
+        "mean_model_a": 0.0851,
+        "mean_model_b": 0.0911,
+        "mean_diff (A - B)": -0.006,
+        "ci_95": [
+          -0.0076,
+          -0.0044
+        ],
+        "p_val_numeric": 0.0,
+        "p_value": "< 0.0005",
+        "statistically_significant": true,
+        "p_value_holm": "< 0.0005",
+        "significant_holm": true
       },
       "BLEU-4": {
-        "mean_model_a": 0.0603,
+        "mean_model_a": 0.0582,
         "mean_model_b": 0.0649,
-        "mean_diff (A - B)": -0.0046,
+        "mean_diff (A - B)": -0.0068,
         "ci_95": [
-          -0.006,
-          -0.0033
+          -0.0082,
+          -0.0053
         ],
+        "p_val_numeric": 0.0,
         "p_value": "< 0.0005",
-        "statistically_significant": true
+        "statistically_significant": true,
+        "p_value_holm": "< 0.0005",
+        "significant_holm": true
+      },
+      "ROUGE-1": {
+        "mean_model_a": 0.3048,
+        "mean_model_b": 0.3085,
+        "mean_diff (A - B)": -0.0037,
+        "ci_95": [
+          -0.0062,
+          -0.0012
+        ],
+        "p_val_numeric": 0.0045,
+        "p_value": "0.0045",
+        "statistically_significant": true,
+        "p_value_holm": "0.0090",
+        "significant_holm": true
+      },
+      "ROUGE-2": {
+        "mean_model_a": 0.1004,
+        "mean_model_b": 0.1146,
+        "mean_diff (A - B)": -0.0143,
+        "ci_95": [
+          -0.0161,
+          -0.0125
+        ],
+        "p_val_numeric": 0.0,
+        "p_value": "< 0.0005",
+        "statistically_significant": true,
+        "p_value_holm": "< 0.0005",
+        "significant_holm": true
       },
       "ROUGE-L": {
-        "mean_model_a": 0.2144,
+        "mean_model_a": 0.2106,
         "mean_model_b": 0.2299,
-        "mean_diff (A - B)": -0.0154,
+        "mean_diff (A - B)": -0.0193,
         "ci_95": [
-          -0.017,
-          -0.0138
+          -0.0214,
+          -0.0173
         ],
+        "p_val_numeric": 0.0,
         "p_value": "< 0.0005",
-        "statistically_significant": true
+        "statistically_significant": true,
+        "p_value_holm": "< 0.0005",
+        "significant_holm": true
+      },
+      "METEOR": {
+        "mean_model_a": 0.2397,
+        "mean_model_b": 0.2332,
+        "mean_diff (A - B)": 0.0064,
+        "ci_95": [
+          0.0042,
+          0.0086
+        ],
+        "p_val_numeric": 0.0,
+        "p_value": "< 0.0005",
+        "statistically_significant": true,
+        "p_value_holm": "< 0.0005",
+        "significant_holm": true
+      },
+      "CIDEr": {
+        "mean_model_a": 0.0193,
+        "mean_model_b": 0.1134,
+        "mean_diff (A - B)": -0.0941,
+        "ci_95": [
+          -0.1031,
+          -0.0856
+        ],
+        "p_val_numeric": 0.0,
+        "p_value": "< 0.0005",
+        "statistically_significant": true,
+        "p_value_holm": "< 0.0005",
+        "significant_holm": true
+      },
+      "SBERT": {
+        "mean_model_a": 0.5859,
+        "mean_model_b": 0.5975,
+        "mean_diff (A - B)": -0.0116,
+        "ci_95": [
+          -0.0141,
+          -0.0091
+        ],
+        "p_val_numeric": 0.0,
+        "p_value": "< 0.0005",
+        "statistically_significant": true,
+        "p_value_holm": "< 0.0005",
+        "significant_holm": true
       }
     },
     "Exp A vs Swin-GPT": {
       "BLEU-1": {
         "mean_model_a": 0.2457,
-        "mean_model_b": 0.2331,
-        "mean_diff (A - B)": 0.0126,
+        "mean_model_b": 0.2404,
+        "mean_diff (A - B)": 0.0053,
         "ci_95": [
-          0.0099,
-          0.0154
+          0.0038,
+          0.0069
         ],
+        "p_val_numeric": 0.0,
         "p_value": "< 0.0005",
-        "statistically_significant": true
+        "statistically_significant": true,
+        "p_value_holm": "< 0.0005",
+        "significant_holm": true
+      },
+      "BLEU-2": {
+        "mean_model_a": 0.1445,
+        "mean_model_b": 0.1392,
+        "mean_diff (A - B)": 0.0053,
+        "ci_95": [
+          0.0042,
+          0.0063
+        ],
+        "p_val_numeric": 0.0,
+        "p_value": "< 0.0005",
+        "statistically_significant": true,
+        "p_value_holm": "< 0.0005",
+        "significant_holm": true
+      },
+      "BLEU-3": {
+        "mean_model_a": 0.0895,
+        "mean_model_b": 0.0851,
+        "mean_diff (A - B)": 0.0045,
+        "ci_95": [
+          0.0035,
+          0.0054
+        ],
+        "p_val_numeric": 0.0,
+        "p_value": "< 0.0005",
+        "statistically_significant": true,
+        "p_value_holm": "< 0.0005",
+        "significant_holm": true
       },
       "BLEU-4": {
         "mean_model_a": 0.0615,
-        "mean_model_b": 0.0603,
-        "mean_diff (A - B)": 0.0011,
+        "mean_model_b": 0.0582,
+        "mean_diff (A - B)": 0.0033,
         "ci_95": [
-          0.0,
-          0.0023
+          0.0024,
+          0.0041
         ],
-        "p_value": "0.0405",
-        "statistically_significant": true
+        "p_val_numeric": 0.0,
+        "p_value": "< 0.0005",
+        "statistically_significant": true,
+        "p_value_holm": "< 0.0005",
+        "significant_holm": true
+      },
+      "ROUGE-1": {
+        "mean_model_a": 0.3106,
+        "mean_model_b": 0.3048,
+        "mean_diff (A - B)": 0.0057,
+        "ci_95": [
+          0.0047,
+          0.0069
+        ],
+        "p_val_numeric": 0.0,
+        "p_value": "< 0.0005",
+        "statistically_significant": true,
+        "p_value_holm": "< 0.0005",
+        "significant_holm": true
+      },
+      "ROUGE-2": {
+        "mean_model_a": 0.1059,
+        "mean_model_b": 0.1004,
+        "mean_diff (A - B)": 0.0055,
+        "ci_95": [
+          0.0045,
+          0.0066
+        ],
+        "p_val_numeric": 0.0,
+        "p_value": "< 0.0005",
+        "statistically_significant": true,
+        "p_value_holm": "< 0.0005",
+        "significant_holm": true
       },
       "ROUGE-L": {
         "mean_model_a": 0.2146,
-        "mean_model_b": 0.2144,
-        "mean_diff (A - B)": 0.0002,
+        "mean_model_b": 0.2106,
+        "mean_diff (A - B)": 0.004,
         "ci_95": [
-          -0.0014,
-          0.0016
+          0.003,
+          0.005
         ],
-        "p_value": "0.8160",
-        "statistically_significant": false
+        "p_val_numeric": 0.0,
+        "p_value": "< 0.0005",
+        "statistically_significant": true,
+        "p_value_holm": "< 0.0005",
+        "significant_holm": true
+      },
+      "METEOR": {
+        "mean_model_a": 0.2458,
+        "mean_model_b": 0.2397,
+        "mean_diff (A - B)": 0.0061,
+        "ci_95": [
+          0.0049,
+          0.0073
+        ],
+        "p_val_numeric": 0.0,
+        "p_value": "< 0.0005",
+        "statistically_significant": true,
+        "p_value_holm": "< 0.0005",
+        "significant_holm": true
+      },
+      "CIDEr": {
+        "mean_model_a": 0.0202,
+        "mean_model_b": 0.0193,
+        "mean_diff (A - B)": 0.001,
+        "ci_95": [
+          0.0001,
+          0.0019
+        ],
+        "p_val_numeric": 0.045,
+        "p_value": "0.0450",
+        "statistically_significant": true,
+        "p_value_holm": "0.0450",
+        "significant_holm": true
+      },
+      "SBERT": {
+        "mean_model_a": 0.5947,
+        "mean_model_b": 0.5859,
+        "mean_diff (A - B)": 0.0088,
+        "ci_95": [
+          0.0076,
+          0.0099
+        ],
+        "p_val_numeric": 0.0,
+        "p_value": "< 0.0005",
+        "statistically_significant": true,
+        "p_value_holm": "< 0.0005",
+        "significant_holm": true
       }
     },
     "Exp B vs Swin-GPT": {
       "BLEU-1": {
         "mean_model_a": 0.231,
-        "mean_model_b": 0.2331,
-        "mean_diff (A - B)": -0.0021,
+        "mean_model_b": 0.2404,
+        "mean_diff (A - B)": -0.0094,
         "ci_95": [
-          -0.0053,
-          0.0009
+          -0.011,
+          -0.0077
         ],
-        "p_value": "0.1675",
-        "statistically_significant": false
+        "p_val_numeric": 0.0,
+        "p_value": "< 0.0005",
+        "statistically_significant": true,
+        "p_value_holm": "< 0.0005",
+        "significant_holm": true
+      },
+      "BLEU-2": {
+        "mean_model_a": 0.1352,
+        "mean_model_b": 0.1392,
+        "mean_diff (A - B)": -0.004,
+        "ci_95": [
+          -0.0052,
+          -0.0028
+        ],
+        "p_val_numeric": 0.0,
+        "p_value": "< 0.0005",
+        "statistically_significant": true,
+        "p_value_holm": "< 0.0005",
+        "significant_holm": true
+      },
+      "BLEU-3": {
+        "mean_model_a": 0.0836,
+        "mean_model_b": 0.0851,
+        "mean_diff (A - B)": -0.0014,
+        "ci_95": [
+          -0.0026,
+          -0.0003
+        ],
+        "p_val_numeric": 0.006,
+        "p_value": "0.0060",
+        "statistically_significant": true,
+        "p_value_holm": "0.0240",
+        "significant_holm": true
       },
       "BLEU-4": {
         "mean_model_a": 0.0575,
-        "mean_model_b": 0.0603,
-        "mean_diff (A - B)": -0.0029,
+        "mean_model_b": 0.0582,
+        "mean_diff (A - B)": -0.0007,
         "ci_95": [
-          -0.0041,
-          -0.0017
+          -0.0017,
+          0.0002
         ],
+        "p_val_numeric": 0.139,
+        "p_value": "0.1390",
+        "statistically_significant": false,
+        "p_value_holm": "0.2780",
+        "significant_holm": false
+      },
+      "ROUGE-1": {
+        "mean_model_a": 0.2991,
+        "mean_model_b": 0.3048,
+        "mean_diff (A - B)": -0.0057,
+        "ci_95": [
+          -0.0069,
+          -0.0044
+        ],
+        "p_val_numeric": 0.0,
         "p_value": "< 0.0005",
-        "statistically_significant": true
+        "statistically_significant": true,
+        "p_value_holm": "< 0.0005",
+        "significant_holm": true
+      },
+      "ROUGE-2": {
+        "mean_model_a": 0.1036,
+        "mean_model_b": 0.1004,
+        "mean_diff (A - B)": 0.0033,
+        "ci_95": [
+          0.0021,
+          0.0044
+        ],
+        "p_val_numeric": 0.0,
+        "p_value": "< 0.0005",
+        "statistically_significant": true,
+        "p_value_holm": "< 0.0005",
+        "significant_holm": true
       },
       "ROUGE-L": {
         "mean_model_a": 0.2107,
-        "mean_model_b": 0.2144,
-        "mean_diff (A - B)": -0.0037,
+        "mean_model_b": 0.2106,
+        "mean_diff (A - B)": 0.0002,
         "ci_95": [
-          -0.0053,
-          -0.002
+          -0.0011,
+          0.0014
         ],
+        "p_val_numeric": 0.8185,
+        "p_value": "0.8185",
+        "statistically_significant": false,
+        "p_value_holm": "0.8185",
+        "significant_holm": false
+      },
+      "METEOR": {
+        "mean_model_a": 0.2367,
+        "mean_model_b": 0.2397,
+        "mean_diff (A - B)": -0.003,
+        "ci_95": [
+          -0.0042,
+          -0.0018
+        ],
+        "p_val_numeric": 0.0,
         "p_value": "< 0.0005",
-        "statistically_significant": true
+        "statistically_significant": true,
+        "p_value_holm": "< 0.0005",
+        "significant_holm": true
+      },
+      "CIDEr": {
+        "mean_model_a": 0.0179,
+        "mean_model_b": 0.0193,
+        "mean_diff (A - B)": -0.0013,
+        "ci_95": [
+          -0.0025,
+          -0.0002
+        ],
+        "p_val_numeric": 0.024,
+        "p_value": "0.0240",
+        "statistically_significant": true,
+        "p_value_holm": "0.0720",
+        "significant_holm": false
+      },
+      "SBERT": {
+        "mean_model_a": 0.5898,
+        "mean_model_b": 0.5859,
+        "mean_diff (A - B)": 0.0039,
+        "ci_95": [
+          0.0026,
+          0.0052
+        ],
+        "p_val_numeric": 0.0,
+        "p_value": "< 0.0005",
+        "statistically_significant": true,
+        "p_value_holm": "< 0.0005",
+        "significant_holm": true
       }
     }
   },
@@ -251,70 +572,70 @@
     },
     "Swin-GPT (Original)": {
       "U-Zero (Ana Analiz)": {
-        "Macro F1": 0.0501,
-        "Micro F1": 0.2029,
-        "Micro Precision": 0.3005,
-        "Micro Recall": 0.1532
+        "Macro F1": 0.1065,
+        "Micro F1": 0.2473,
+        "Micro Precision": 0.3366,
+        "Micro Recall": 0.1954
       },
       "U-Ones (Duyarl\u0131l\u0131k Analizi)": {
-        "Macro F1": 0.0501,
-        "Micro F1": 0.2004,
-        "Micro Precision": 0.3006,
-        "Micro Recall": 0.1503
+        "Macro F1": 0.1066,
+        "Micro F1": 0.2453,
+        "Micro Precision": 0.338,
+        "Micro Recall": 0.1925
       },
-      "Total Omissions (Atlanan Pozitif Bulgular)": 31595,
-      "Total Unsupported Findings (Referansta Bahsedilmeyen Bulgular)": 13265,
-      "Total Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Bulgular)": 35,
+      "Total Omissions (Atlanan Pozitif Bulgular)": 30018,
+      "Total Unsupported Findings (Referansta Bahsedilmeyen Bulgular)": 13893,
+      "Total Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Bulgular)": 447,
       "5_Focus_Pathologies": {
         "Cardiomegaly": {
-          "Precision": 0.1765,
-          "Recall": 0.0014,
-          "F1-Score": 0.0027,
-          "True Positives": 3,
+          "Precision": 0.1842,
+          "Recall": 0.0419,
+          "F1-Score": 0.0683,
+          "True Positives": 91,
           "Support (Ref Positive)": 2171,
-          "Omissions (Atlanan Pozitif)": 2168,
-          "Unsupported Findings (Referansta Bahsedilmeyen Pozitif)": 14,
-          "Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Pozitif)": 0
+          "Omissions (Atlanan Pozitif)": 2080,
+          "Unsupported Findings (Referansta Bahsedilmeyen Pozitif)": 373,
+          "Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Pozitif)": 27
         },
         "Pneumonia": {
-          "Precision": 0.0,
-          "Recall": 0.0,
-          "F1-Score": 0.0,
-          "True Positives": 0,
+          "Precision": 0.1552,
+          "Recall": 0.0055,
+          "F1-Score": 0.0105,
+          "True Positives": 9,
           "Support (Ref Positive)": 1650,
-          "Omissions (Atlanan Pozitif)": 1650,
-          "Unsupported Findings (Referansta Bahsedilmeyen Pozitif)": 2,
-          "Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Pozitif)": 0
+          "Omissions (Atlanan Pozitif)": 1641,
+          "Unsupported Findings (Referansta Bahsedilmeyen Pozitif)": 45,
+          "Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Pozitif)": 4
         },
         "Atelectasis": {
-          "Precision": 0.3111,
-          "Recall": 0.0029,
-          "F1-Score": 0.0058,
-          "True Positives": 14,
+          "Precision": 0.3547,
+          "Recall": 0.0862,
+          "F1-Score": 0.1387,
+          "True Positives": 409,
           "Support (Ref Positive)": 4746,
-          "Omissions (Atlanan Pozitif)": 4732,
-          "Unsupported Findings (Referansta Bahsedilmeyen Pozitif)": 31,
-          "Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Pozitif)": 0
+          "Omissions (Atlanan Pozitif)": 4337,
+          "Unsupported Findings (Referansta Bahsedilmeyen Pozitif)": 733,
+          "Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Pozitif)": 5
         },
         "Pneumothorax": {
-          "Precision": 0.0,
-          "Recall": 0.0,
-          "F1-Score": 0.0,
-          "True Positives": 0,
+          "Precision": 0.1324,
+          "Recall": 0.0275,
+          "F1-Score": 0.0456,
+          "True Positives": 18,
           "Support (Ref Positive)": 654,
-          "Omissions (Atlanan Pozitif)": 654,
-          "Unsupported Findings (Referansta Bahsedilmeyen Pozitif)": 0,
-          "Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Pozitif)": 0
+          "Omissions (Atlanan Pozitif)": 636,
+          "Unsupported Findings (Referansta Bahsedilmeyen Pozitif)": 55,
+          "Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Pozitif)": 62
         },
         "Pleural Effusion": {
-          "Precision": 0.4286,
-          "Recall": 0.0008,
-          "F1-Score": 0.0015,
-          "True Positives": 3,
+          "Precision": 0.3834,
+          "Recall": 0.0545,
+          "F1-Score": 0.0954,
+          "True Positives": 217,
           "Support (Ref Positive)": 3983,
-          "Omissions (Atlanan Pozitif)": 3980,
-          "Unsupported Findings (Referansta Bahsedilmeyen Pozitif)": 2,
-          "Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Pozitif)": 2
+          "Omissions (Atlanan Pozitif)": 3766,
+          "Unsupported Findings (Referansta Bahsedilmeyen Pozitif)": 135,
+          "Direct Contradictions (A\u00e7\u0131k\u00e7a \u00c7eli\u015fen Pozitif)": 203
         }
       }
     },

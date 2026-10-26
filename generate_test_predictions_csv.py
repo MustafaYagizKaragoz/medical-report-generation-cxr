@@ -107,11 +107,8 @@ def main():
         decoder_name="distilgpt2",
         enable_gradient_checkpointing=False,
     ).to(device)
-    swin_ckpt = torch.load(swin_ckpt_path, map_location=device)
-    state = swin_ckpt.get("model_state", swin_ckpt)
-    swin_model.load_state_dict(state, strict=False)
+    swin_model.load_checkpoint_compatible(swin_ckpt_path, map_location=device)
     swin_model.eval()
-    print("✅ Swin-DistilGPT2 loaded successfully!")
 
     # 4. Set up transforms
     imagenet_mean = [0.485, 0.456, 0.406]

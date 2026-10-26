@@ -13,6 +13,16 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 
+# Windows konsolunda UTF-8 çıktı desteği sağla
+if sys.platform.startswith("win"):
+    import io
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except AttributeError:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
+
 import nltk
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 
@@ -105,30 +115,81 @@ def main():
     print("─" * 80)
     print(table4_df.to_string(index=False))
 
-    # 3. İSTATİSTİKSEL ANALİZ: 2.000 HASTA BAZLI BOOTSTRAP VE PERMÜTASYON TESTİ
+    import argparse
+    parser = argparse.ArgumentParser(description="Master Evaluation and Reporting Pipeline")
+    parser.add_argument("--force_recompute", action="store_true", help="Force recomputing 2000 bootstraps & permutations")
+    parser.add_argument("--skip_eval", action="store_true", help="Skip recomputing metrics if outputs exist")
+    parser.add_argument("--show_stats", action="store_true", help="Print 10-metric Holm statistical significance tables")
+    args = parser.parse_args()
+
+    # 3. İSTATİSTİKSEL ANALİZ: 2.000 HASTA BAZLI BOOTSTRAP VE PERMÜTASYON TESTİ (10 METRİK)
     print("\n" + "=" * 80)
-    print("📐 2. İSTATİSTİKSEL ANLAMLILIK: 2.000 BOOTSTRAP & EŞLEŞTİRİLMİŞ PERMÜTASYON TESTİ")
+    print("📐 2. İSTATİSTİKSEL ANLAMLILIK: 2.000 BOOTSTRAP & EŞLEŞTİRİLMİŞ PERMÜTASYON TESTİ (10 METRİK)")
     print("=" * 80)
 
     comparisons = {
-        "Swin-GPT vs CNN-LSTM": ("pred_swin_original", "pred_cnnlstm"),
         "Exp A vs Swin-GPT": ("pred_exp_a", "pred_swin_original"),
         "Exp B vs Swin-GPT": ("pred_exp_b", "pred_swin_original"),
+        "Swin-GPT vs CNN-LSTM": ("pred_swin_original", "pred_cnnlstm"),
     }
 
+    final_output_json = "experiments/final_revision_results_all.json"
     bootstrap_results = {}
-    for comp_name, (col_a, col_b) in comparisons.items():
-        res_comp = run_patient_clustered_bootstrap_and_permutation(
-            master_df,
-            model_a_col=col_a,
-            model_b_col=col_b,
-            ref_col="reference_report",
-            subject_col="subject_id",
-            n_bootstraps=2000,
-            n_permutations=2000,
-            seed=42,
-        )
-        bootstrap_results[comp_name] = res_comp
+
+    if not args.force_recompute and os.path.exists(final_output_json):
+        try:
+            with open(final_output_json, "r", encoding="utf-8") as f_prev:
+                prev_json_data = json.load(f_prev)
+            if "bootstrap_permutation_stats" in prev_json_data:
+                bootstrap_results = prev_json_data["bootstrap_permutation_stats"]
+                print(f"💡 Önceden hesaplanmış 2.000 replikasyonlu istatistiksel sonuçlar yüklendi: {final_output_json}")
+        except Exception as e:
+            print(f"⚠️ Önceki sonuçlar yüklenemedi ({e}), yeniden hesaplanıyor...")
+
+    if not bootstrap_results or args.force_recompute:
+        for comp_name, (col_a, col_b) in comparisons.items():
+            res_comp = run_patient_clustered_bootstrap_and_permutation(
+                master_df,
+                model_a_col=col_a,
+                model_b_col=col_b,
+                ref_col="reference_report",
+                subject_col="subject_id",
+                n_bootstraps=2000,
+                n_permutations=2000,
+                seed=42,
+            )
+            bootstrap_results[comp_name] = res_comp
+
+    # 10 Metriğin Tamamını Holm-Bonferroni Düzeltmesiyle Konsola ve CSV'ye Aktar
+    table5_rows = []
+    for comp_name, metrics_dict in bootstrap_results.items():
+        print("\n" + "─" * 80)
+        print(f"📌 {comp_name.upper()} (10 METRİK İÇİN HASTA DÜZEYİNDE PERMÜTASYON & HOLM DÜZELTMESİ)")
+        print("─" * 80)
+        comp_rows = []
+        for m_name, vals in metrics_dict.items():
+            ci_str = f"[{vals['ci_95'][0]:.4f}, {vals['ci_95'][1]:.4f}]"
+            sig_holm = "Evet" if vals.get("significant_holm", vals.get("statistically_significant", False)) else "Hayır"
+            p_holm = vals.get("p_value_holm", vals.get("p_value", "N/A"))
+            row_data = {
+                "Karşılaştırma": comp_name,
+                "Metrik": m_name,
+                "Model A Ort": vals.get("mean_model_a", 0.0),
+                "Model B Ort": vals.get("mean_model_b", 0.0),
+                "Fark (A - B)": vals.get("mean_diff (A - B)", 0.0),
+                "%95 GA": ci_str,
+                "p (Perm)": vals.get("p_value", "N/A"),
+                "p (Holm)": p_holm,
+                "Anlamlı (α=0.05)": sig_holm
+            }
+            comp_rows.append(row_data)
+            table5_rows.append(row_data)
+        comp_df = pd.DataFrame(comp_rows)
+        print(comp_df.to_string(index=False))
+
+    table5_csv = "experiments/table5_statistical_significance_holm.csv"
+    pd.DataFrame(table5_rows).to_csv(table5_csv, index=False, encoding="utf-8")
+    print(f"\n💾 10 metriklik Holm düzeltmeli istatistik tablosu kaydedildi: {table5_csv}")
 
     # 4. KLİNİK DOĞRULUK DEĞERLENDİRMESİ (U-Zero, U-Ones, Omissions, Unsupported)
     print("\n" + "=" * 80)
@@ -136,12 +197,23 @@ def main():
     print("=" * 80)
 
     clinical_results = {}
-    for model_name, col_name in cols_map.items():
-        c_res = evaluate_clinical_efficacy_advanced(master_df, pred_col=col_name, ref_col="reference_report")
-        clinical_results[model_name] = c_res
-        omiss = c_res.get("Total Omissions (Atlanan Pozitif Bulgular)", c_res.get("Total Omissions (Atlanan Bulgular)", 0))
-        unsup = c_res.get("Total Unsupported Findings (Referansta Bahsedilmeyen Bulgular)", c_res.get("Total Unsupported Findings (Desteklenmeyen Bulgular)", 0))
-        print(f"      Total Omissions (FN): {omiss:,} | Unsupported Findings (FP): {unsup:,}")
+    if not args.force_recompute and os.path.exists(final_output_json):
+        try:
+            with open(final_output_json, "r", encoding="utf-8") as f_prev:
+                prev_json_data = json.load(f_prev)
+            if "clinical_efficacy" in prev_json_data:
+                clinical_results = prev_json_data["clinical_efficacy"]
+                print(f"💡 Önceden hesaplanmış klinik doğruluk sonuçları yüklendi: {final_output_json}")
+        except Exception:
+            pass
+
+    if not clinical_results or args.force_recompute:
+        for model_name, col_name in cols_map.items():
+            c_res = evaluate_clinical_efficacy_advanced(master_df, pred_col=col_name, ref_col="reference_report")
+            clinical_results[model_name] = c_res
+            omiss = c_res.get("Total Omissions (Atlanan Pozitif Bulgular)", c_res.get("Total Omissions (Atlanan Bulgular)", 0))
+            unsup = c_res.get("Total Unsupported Findings (Referansta Bahsedilmeyen Bulgular)", c_res.get("Total Unsupported Findings (Desteklenmeyen Bulgular)", 0))
+            print(f"      {model_name:<32} -> Omissions (FN): {omiss:,} | Unsupported (FP): {unsup:,}")
 
     # 5. DENETİM BİLGİLERİ DERLEME
     audit_data = {
@@ -151,7 +223,6 @@ def main():
     }
 
     # 6. JSON DOSYASI OLARAK TÜM SONUÇLARI KAYDET
-    final_output_json = "experiments/final_revision_results_all.json"
     full_data_to_save = {
         "timestamp": datetime.now().isoformat(),
         "table4_nlp_metrics": table4_df.to_dict(orient="records"),
@@ -175,6 +246,9 @@ def main():
         audit_data=audit_data,
         output_pdf_path=pdf_out_path,
     )
+    import shutil
+    shutil.copyfile(pdf_out_path, "Rapor.pdf")
+    print(f"📋 'Rapor.pdf' dosyası da güncellendi: {os.path.abspath('Rapor.pdf')}")
 
     print("\n" + "=" * 80)
     print("🎉 TÜM ANALİZLER VE MASTER PDF RAPORU BAŞARIYLA TAMAMLANDI!")

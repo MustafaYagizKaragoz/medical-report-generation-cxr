@@ -421,9 +421,32 @@ def main():
         ).to(device)
 
         ckpt  = torch.load(model_path, map_location=device, weights_only=False)
-        state = ckpt.get("model_state", ckpt)
-        model.load_state_dict(state, strict=False)
-        print("✅ Ağırlıklar yüklendi.")
+        raw_state = ckpt.get("model_state", ckpt)
+
+        # Backward compatibility for checkpoints trained on Transformers v4.x
+        target_keys = set(model.state_dict().keys())
+        remapped_state = {}
+        for k, v in raw_state.items():
+            new_k = k
+            new_k = new_k.replace(".attention.self.query.", ".attention.q_proj.")
+            new_k = new_k.replace(".attention.self.key.", ".attention.k_proj.")
+            new_k = new_k.replace(".attention.self.value.", ".attention.v_proj.")
+            new_k = new_k.replace(".attention.output.dense.", ".attention.o_proj.")
+            new_k = new_k.replace(".attention.self.relative_position_bias_table", ".attention.relative_position_bias.relative_position_bias_table")
+            new_k = new_k.replace(".intermediate.dense.", ".mlp.fc1.")
+            new_k = new_k.replace(".output.dense.", ".mlp.fc2.")
+
+            if new_k in target_keys:
+                remapped_state[new_k] = v
+            elif k in target_keys:
+                remapped_state[k] = v
+            else:
+                remapped_state[new_k] = v
+
+        load_res = model.load_state_dict(remapped_state, strict=False)
+        print(f"✅ Ağırlıklar yüklendi. (Eksik Anahtar: {len(load_res.missing_keys)}, Beklenmeyen Anahtar: {len(load_res.unexpected_keys)})")
+        if len(load_res.missing_keys) == 0:
+            print("   🎉 Swin görsel omurgası ve GPT decoder %100 eksiksiz bağlandı!")
 
         # ── Inference ─────────────────────────────────────────────────────────
         beam_size    = args.beam_size
